@@ -34,29 +34,7 @@ def unserialize_bookmark(x):
     cells = s.unserialize_values(x[1:])
     return cells, backwards
 
-# ordering as selected
 
-# 0: the key used in the where clause
-# 1: the key of the first row returned
-# n: the key of the nth row returned
-# nplus1: the marker of the row returned beyond n
-
-# ordering in proper order
-
-# before:
-# beyond:
-# first
-# last
-# next: the next page
-# previous: the previous page
-
-# current_forward: the marker
-# current_backward: the marker for this page going backwards
-# current: the marker as actually used
-# current_opposite: the marker for the same page in the opposite direction
-
-# key: row tuple
-# bookmark: row tuple plus direction
 
 
 class Page(list):
@@ -78,6 +56,40 @@ class Page(list):
 
 
 class Paging(object):
+    """
+    Object with paging information. Most properties return a page marker. Prefix these properties with 'bookmark_' to get the serialized version of that page marker. Naming conventions are as follows:
+
+    Ordering as returned by the query
+    ---------------------------------
+
+    - 0: the key used in the where clause
+    - 1: the key of the first row returned
+    - n: the key of the nth row returned
+    - nplus1: the marker of the row returned beyond n
+    - further: the direction continuing in this order
+
+
+    Ordering once flipped if necessary (ie for backwards-facing pages)
+    ------------------------------------------------------------------
+
+    - next: the next page
+    - previous: the previous page
+
+    - current_forward: the marker
+    - current_backward: the marker for this page going backwards
+    - current: the marker as actually used
+    - current_opposite: the marker for the same page in the opposite direction
+
+
+    Tests
+    -----
+
+    - has_next: True if there's more rows after this page.
+    - has_previous: True if there's more rows before this page.
+    - has_further: True if there's more rows in the paging direction.
+
+    """
+
     def __init__(
             self,
             rows,
