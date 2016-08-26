@@ -38,5 +38,8 @@ lint:
 tidy: clean fmt lint
 
 
-all: pipupgrade clean lint tox 
+all: pipupgrade clean lint tox
 
+publish:
+	python setup.py register
+	python setup.py sdist bdist_wheel --universal upload

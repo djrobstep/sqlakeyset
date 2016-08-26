@@ -19,3 +19,4 @@ pymysql
 tox
 
 sphinx
+wheel
