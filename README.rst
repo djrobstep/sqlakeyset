@@ -3,7 +3,7 @@ sqlakeyset: offset-free paging for sqlalchemy
 
 This library implements keyset-based paging for SQLAlchemy (both ORM and core).
 
-This library has been tested with PostgreSQL and MariaDB/MySQL. It should work with other SQLAlchemy-supported databases to provided they support ``row(`` syntax (see below).
+This library has been tested with PostgreSQL and MariaDB/MySQL. It should work with other SQLAlchemy-supported databases too provided they support ``row(`` syntax (see below).
 
 Background
 ----------
