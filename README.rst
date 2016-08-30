@@ -73,7 +73,7 @@ In our above example, the 2-tuple specifying the second page might look like:
 
 .. code-block:: python
 
-    ('Catch 22', 123), False
+    ('Joseph Heller', 'Catch 22', 123), False
 
 The `False` means the query will fetch the page *after* the row containing Catch 22. This tuple contains two elements, title and id, to match the order by clause of the query.
 
@@ -81,7 +81,7 @@ The page before this row would be specified as:
 
 .. code-block:: python
 
-    ('Catch 22', 123), True
+    ('Joseph Heller', 'Catch 22', 123), True
 
 The first and last pages are fetched with `None` instead of a tuple, so for the first page (this is also the default if the page parameter is not specified):
 
