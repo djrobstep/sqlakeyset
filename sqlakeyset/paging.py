@@ -175,9 +175,9 @@ def paging_condition(ordering_columns, place):
 
     def swapped_if_descending(c, value):
         if not c.is_ascending:
-            return value, c.uo.element
+            return value, c.element
         else:
-            return c.uo.element, value
+            return c.element, value
 
     zipped = zip(ordering_columns, place)
     swapped = [swapped_if_descending(c, value) for c, value in zipped]
