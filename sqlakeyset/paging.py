@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from .columns import parse_clause, OC
+import sqlalchemy
 from sqlalchemy import func
 from functools import partial
 
@@ -64,7 +65,12 @@ def orm_placemarker_from_row(row, ocols, column_descriptions):
         expr = desc['expr']
         name = desc['name']
 
-        if entity == expr:  # is a table
+        try:
+            is_a_table = entity == expr
+        except sqlalchemy.exc.ArgumentError:
+            is_a_table = False
+
+        if is_a_table:  # is a table
             if entity.__tablename__ == ocol.table_name:
                 return getattr(thing, ocol.name)
             else:

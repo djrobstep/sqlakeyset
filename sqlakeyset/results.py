@@ -35,8 +35,6 @@ def unserialize_bookmark(x):
     return cells, backwards
 
 
-
-
 class Page(list):
     def scalar(self):
         return self.one()[0]

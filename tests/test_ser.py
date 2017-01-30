@@ -31,8 +31,10 @@ def unser_z(x):
 def ser_z(x):
     return 'z', x[::-1]
 
+
 s.custom_serializations[Z] = ser_z
 s.custom_unserializations['z'] = unser_z
+
 
 with io.open('tests/blns.txt') as f:
     NAUGHTY = f.read().splitlines()
@@ -41,10 +43,10 @@ with io.open('tests/blns.txt') as f:
 def test_ser():
     STRINGS = [
         'abc',
-        'abc\~',
+        r'abc\~',
         '~'.join(['\\', '~']),
-        'abc~1234\~1234',
-        '~~~~~~~\\\\\\\\`````\\\\\\\\\\``\`\''
+        r'abc~1234\~1234',
+        '~~~~~~~\\\\\\\\`````\\\\\\\\\\``\\`\''
     ]
 
     assert s.split(s.join(STRINGS)) == STRINGS
