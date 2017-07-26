@@ -1,7 +1,8 @@
 sqlakeyset: offset-free paging for sqlalchemy
 =============================================
 
-[![Build Status](https://travis-ci.org/djrobstep/sqlakeyset.svg?branch=master)](https://travis-ci.org/djrobstep/sqlakeyset)
+.. image:: https://travis-ci.org/djrobstep/sqlakeyset.svg?branch=master
+    :target: https://travis-ci.org/djrobstep/sqlakeyset
 
 This library implements keyset-based paging for SQLAlchemy (both ORM and core).
 
