@@ -71,7 +71,7 @@ def orm_placemarker_from_row(row, ocols, column_descriptions):
             is_a_table = False
 
         if is_a_table:  # is a table
-            if entity.__tablename__ == ocol.table_name:
+            if entity.__table__.name == ocol.table_name:
                 return getattr(thing, ocol.name)
             else:
                 raise ValueError
