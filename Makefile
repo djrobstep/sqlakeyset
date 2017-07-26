@@ -5,14 +5,8 @@ tmessy = -svv
 targs = --cov-report term-missing --cov sqlakeyset
 
 pip:
-	pip install -r requirements-dev.txt
-
-pipupgrade:
 	pip install --upgrade pip
-	pip install --upgrade -r requirements-dev.txt
-
-pipreqs:
-	pip install -r requirements.txt
+	pip install --upgrade -r requirements.txt
 
 pipeditable:
 	pip install -e .

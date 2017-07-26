@@ -1,2 +1,22 @@
-python-dateutil
-sqlalchemy
+-e .
+
+itsdangerous
+
+pytest
+pytest-cov
+pytest-xdist
+pytest-sugar
+mock
+
+pylint
+autopep8
+flake8
+
+sqlbag
+psycopg2
+pymysql
+
+tox
+
+sphinx
+wheel
