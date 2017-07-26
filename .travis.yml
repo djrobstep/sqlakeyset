@@ -1,0 +1,24 @@
+language: python
+python:
+  - "2.7"
+  - "3.6"
+
+before_install:
+  - mysql -e "grant all privileges on *.* to 'travis'@'localhost';"
+
+sudo: required
+
+dist: trusty
+
+services:
+  - postgresql
+  - mysql
+
+addons:
+  postgresql: "9.6"
+
+# command to install dependencies
+install: make pip
+
+# command to run tests
+script: make test
