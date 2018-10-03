@@ -176,6 +176,8 @@ def test_bookmarks():
 def test_paging():
     for db in ['postgresql', 'mysql']:
         with temporary_database(db) as dburl:
+            assert 1==1
             fixture_setup(dburl)
             do_orm_tests(dburl)
             do_core_tests(dburl)
+            assert 1==2
