@@ -20,7 +20,10 @@ if not PY2:
 
 def where_condition_for_page(ordering_columns, place):
     row, place_row = paging_condition(ordering_columns, place)
-    condition = func.row(*row) > func.row(*place_row)
+    if len(row) == 1:
+        condition = row[0] > place_row[0]
+    else:
+        condition = func.row(*row) > func.row(*place_row)
     return condition
 
 
