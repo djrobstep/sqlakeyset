@@ -121,10 +121,12 @@ def do_orm_tests(dburl):
         q = s.query(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
         q2 = s.query(Book).order_by(Book.id, Book.name)
         q3 = s.query(Book.id, Book.name.label('x')).order_by(Book.name, Book.id)
+        q4 = s.query(Book).order_by(Book.name)
 
         check_paging(q=q)
         check_paging(q=q2)
         check_paging(q=q3)
+        check_paging(q=q4)
 
 
 def do_core_tests(dburl):
