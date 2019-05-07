@@ -1,14 +1,14 @@
 from __future__ import unicode_literals
 
-from .columns import parse_clause, OC
-import sqlalchemy
-from sqlalchemy import func
+import sys
 from functools import partial
 
+import sqlalchemy
+from sqlalchemy import func
+from sqlalchemy.orm import class_mapper
+
+from .columns import parse_clause, OC
 from .results import Page, Paging, unserialize_bookmark
-
-import sys
-
 
 PER_PAGE_DEFAULT = 10
 
