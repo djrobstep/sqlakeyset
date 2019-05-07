@@ -19,7 +19,7 @@ BOOK = 't_Book'
 
 class Book(Base):
     __tablename__ = BOOK
-    id = Column(Integer, primary_key=True)
+    id = Column('book_id', Integer, primary_key=True)
     name = Column(String(255))
     a = Column(Integer)
     b = Column(Integer)
@@ -157,7 +157,7 @@ def test_orm_query4(dburl):
 
 
 def test_core(dburl):
-    spec = ['b', 'd', 'id', 'c']
+    spec = ['b', 'd', 'book_id', 'c']
 
     cols = [column(each) for each in spec]
     ob = [OC(x).uo for x in spec]
