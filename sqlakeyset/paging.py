@@ -1,14 +1,14 @@
 from __future__ import unicode_literals
 
-from .columns import parse_clause, OC
-import sqlalchemy
-from sqlalchemy import func
+import sys
 from functools import partial
 
+import sqlalchemy
+from sqlalchemy import func
+from sqlalchemy.orm import class_mapper
+
+from .columns import parse_clause, OC
 from .results import Page, Paging, unserialize_bookmark
-
-import sys
-
 
 PER_PAGE_DEFAULT = 10
 
@@ -34,7 +34,6 @@ def orm_page_from_rows(
         column_descriptions,
         backwards=False,
         current_marker=None):
-
     get_marker = partial(
         orm_placemarker_from_row,
         column_descriptions=column_descriptions)
@@ -53,7 +52,6 @@ def core_page_from_rows(
         backwards=False,
         current_marker=None,
         keys=None):
-
     paging = Paging(rows, page_size, ocols, backwards, current_marker, core_placemarker_from_row)
 
     page = Page(paging.rows)
@@ -62,59 +60,66 @@ def core_page_from_rows(
     return page
 
 
+def value_from_thing(thing, desc, ocol):
+    entity = desc['entity']
+    expr = desc['expr']
+
+    try:
+        is_a_table = entity == expr
+    except sqlalchemy.exc.ArgumentError:
+        is_a_table = False
+
+    if is_a_table:  # is a table
+        mapper = class_mapper(desc['type'])
+        if entity.__table__.name == ocol.table_name:
+            prop = mapper.get_property_by_column(ocol.element)
+            return getattr(thing, prop.key)
+        else:
+            raise ValueError
+
+    # is an attribute
+    if hasattr(expr, 'info'):
+        mapper = expr.parent
+        tname = mapper.local_table.description
+
+        if ocol.table_name == tname and ocol.name == expr.name:
+            return thing
+        else:
+            raise ValueError
+
+    # is an attribute with label
+    if ocol.quoted_full_name == OC(expr).full_name:
+        return thing
+    else:
+        raise ValueError
+
+
 def orm_placemarker_from_row(row, ocols, column_descriptions):
-    def value_from_thing(thing, desc, ocol):
-        entity = desc['entity']
-        expr = desc['expr']
-        name = desc['name']
-
-        try:
-            is_a_table = entity == expr
-        except sqlalchemy.exc.ArgumentError:
-            is_a_table = False
-
-        if is_a_table:  # is a table
-            if entity.__table__.name == ocol.table_name:
-                return getattr(thing, ocol.name)
-            else:
-                raise ValueError
-        else:  # is an attribute
-            if hasattr(expr, 'info'):
-                mapper = expr.parent
-                tname = mapper.local_table.description
-
-                if ocol.table_name == tname and ocol.name == name:
-                    return thing
-                else:
-                    raise ValueError
-            else:
-                if ocol.quoted_full_name == OC(expr).full_name:
-                    return thing
-                else:
-                    raise ValueError
-
-    def get_value(ocol):
-        if len(column_descriptions) == 1:
+    cant_find = "can't find value for column {} in the results returned"
+    if len(column_descriptions) == 1:
+        def get_value(ocol):
             desc = column_descriptions[0]
             try:
                 return value_from_thing(row, desc, ocol)
             except ValueError:
                 pass
-        else:
+            raise ValueError(cant_find.format(ocol.full_name))
+    else:
+        def get_value(ocol):
             for thing, desc in zip(row, column_descriptions):
                 try:
                     return value_from_thing(thing, desc, ocol)
                 except ValueError:
                     continue
+            raise ValueError(cant_find.format(ocol.full_name))
 
-        CANT_FIND = "can't find value for column {} in the results returned"
-        raise ValueError(CANT_FIND.format(ocol.full_name))
     return tuple(get_value(x) for x in ocols)
 
 
 def core_placemarker_from_row(row, ocols):
     def get_value(ocol):
         return row[ocol.name]
+
     return tuple(get_value(x) for x in ocols)
 
 
@@ -226,7 +231,6 @@ def select_page(
         after=False,
         before=False,
         page=False):
-
     place, backwards = process_args(after, before, page)
 
     return core_get_page(
@@ -243,7 +247,6 @@ def get_page(
         after=False,
         before=False,
         page=False):
-
     place, backwards = process_args(after, before, page)
 
     return orm_get_page(

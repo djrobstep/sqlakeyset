@@ -1,12 +1,11 @@
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
-from sqlalchemy.sql.expression import UnaryExpression
-from sqlalchemy.sql.operators import asc_op, desc_op
-
-from sqlalchemy import asc, column
-
 import sys
 from copy import copy
+
+from sqlalchemy import asc, column
+from sqlalchemy.sql.expression import UnaryExpression
+from sqlalchemy.sql.operators import asc_op, desc_op
 
 PY2 = sys.version_info.major <= 2
 

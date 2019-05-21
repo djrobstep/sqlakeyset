@@ -1,13 +1,12 @@
 import warnings
 
-from sqlbag import temporary_database, S
+import pytest
 from sqlalchemy import select, String, Column, Integer, ForeignKey, column, table, desc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from sqlbag import temporary_database, S
 
 from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark, OC, process_args
-
-from pytest import raises
 
 warnings.simplefilter("error")
 
@@ -20,7 +19,7 @@ BOOK = 't_Book'
 
 class Book(Base):
     __tablename__ = BOOK
-    id = Column(Integer, primary_key=True)
+    id = Column('book_id', Integer, primary_key=True)
     name = Column(String(255))
     a = Column(Integer)
     b = Column(Integer)
@@ -36,40 +35,34 @@ class Author(Base):
     books = relationship('Book', backref='author')
 
 
-def fixture_setup(dburl):
-    COUNT = 10
+@pytest.fixture(params=['postgresql', 'mysql'])
+def dburl(request):
+    count = 10
+    data = []
 
-    with S(dburl) as s:
-        Base.metadata.create_all(s.connection())
+    for x in range(count):
+        b = Book(name='Book {}'.format(x), a=x, b=x % 2, c=count - x, d=99)
 
-    with S(dburl) as s:
-        for x in range(COUNT):
-            b = Book(
-                name='Book {}'.format(x),
-                a=x,
-                b=x % 2,
-                c=COUNT - x,
-                d=99)
+        if x == 1:
+            b.a = None
+            b.author = Author(name='Willy Shakespeare')
 
-            if x == 1:
-                b.a = None
-                b.author = Author(name='Willy Shakespeare')
-            s.add(b)
+        data.append(b)
+
+    with temporary_database(request.param) as dburl:
+        with S(dburl) as s:
+            Base.metadata.create_all(s.connection())
+            s.add_all(data)
+        yield dburl
 
 
-def check_paging(q=None, selectable=None, s=None):
-    ITEM_COUNTS = range(1, 12)
+def check_paging_orm(q):
+    item_counts = range(1, 12)
 
-    if q is not None:
-        unpaged = q.all()
-    elif selectable is not None:
-        result = s.execute(selectable)
+    unpaged = q.all()
 
-        unpaged = result.fetchall()
-
-    for per_page in ITEM_COUNTS:
-        for backwards in [False, True]:
-
+    for backwards in [False, True]:
+        for per_page in item_counts:
             gathered = []
 
             page = None, backwards
@@ -78,71 +71,105 @@ def check_paging(q=None, selectable=None, s=None):
                 serialized_page = serialize_bookmark(page)
                 page = unserialize_bookmark(serialized_page)
 
-                if q is not None:
-                    method = get_page
-                    args = (q,)
-                elif selectable is not None:
-                    method = select_page
-                    args = (s, selectable)
+                page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
+                paging = page_with_paging.paging
 
-                rows = method(
-                    *args,
-                    per_page=per_page,
-                    page=serialized_page
-                )
-
-                p = rows.paging
-
-                assert p.current == page
-
-                if selectable is not None:
-                    assert rows.keys() == result.keys()
+                assert paging.current == page
 
                 if backwards:
-                    gathered = rows + gathered
+                    gathered = page_with_paging + gathered
                 else:
-                    gathered = gathered + rows
+                    gathered = gathered + page_with_paging
 
-                page = p.further
+                page = paging.further
 
-                if not rows:
-                    assert not p.has_further
-                    assert p.further == p.current
-                    assert p.current_opposite == (None, not p.backwards)
+                if not page_with_paging:
+                    assert not paging.has_further
+                    assert paging.further == paging.current
+                    assert paging.current_opposite == (None, not paging.backwards)
                     break
 
             assert gathered == unpaged
 
 
-def do_orm_tests(dburl):
+def check_paging_core(selectable, s):
+    item_counts = range(1, 12)
+
+    result = s.execute(selectable)
+    unpaged = result.fetchall()
+
+    for backwards in [False, True]:
+        for per_page in item_counts:
+            gathered = []
+
+            page = None, backwards
+
+            while True:
+                serialized_page = serialize_bookmark(page)
+                page = unserialize_bookmark(serialized_page)
+
+                page_with_paging = select_page(s, selectable, per_page=per_page, page=serialized_page)
+                paging = page_with_paging.paging
+
+                assert paging.current == page
+                assert page_with_paging.keys() == result.keys()
+
+                if backwards:
+                    gathered = page_with_paging + gathered
+                else:
+                    gathered = gathered + page_with_paging
+
+                page = paging.further
+
+                if not page_with_paging:
+                    assert not paging.has_further
+                    assert paging.further == paging.current
+                    assert paging.current_opposite == (None, not paging.backwards)
+                    break
+
+            assert gathered == unpaged
+
+
+def test_orm_query1(dburl):
     spec = [desc(Book.b), Book.d, Book.id]
 
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
-        q2 = s.query(Book).order_by(Book.id, Book.name)
-        q3 = s.query(Book.id, Book.name.label('x')).order_by(Book.name, Book.id)
-        q4 = s.query(Book).order_by(Book.name)
-
-        check_paging(q=q)
-        check_paging(q=q2)
-        check_paging(q=q3)
-        check_paging(q=q4)
+        check_paging_orm(q=q)
 
 
-def do_core_tests(dburl):
-    spec = ['b', 'd', 'id', 'c']
+def test_orm_query2(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.id, Book.name)
+        check_paging_orm(q=q)
+
+
+def test_orm_query3(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book.id, Book.name.label('x')).order_by(Book.name, Book.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_query4(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.name)
+        check_paging_orm(q=q)
+
+
+def test_core(dburl):
+    spec = ['b', 'd', 'book_id', 'c']
 
     cols = [column(each) for each in spec]
     ob = [OC(x).uo for x in spec]
 
-    with S(dburl, echo=ECHO) as s:
-        selectable = select(
-            cols,
-            from_obj=[table('t_Book')],
-            whereclause=column('d') == 99,
-            order_by=ob)
+    selectable = select(
+        cols,
+        from_obj=[table('t_Book')],
+        whereclause=column('d') == 99,
+        order_by=ob)
 
-        check_paging(selectable=selectable, s=s)
+    with S(dburl, echo=ECHO) as s:
+        check_paging_core(selectable=selectable, s=s)
 
 
 def test_args():
@@ -150,11 +177,11 @@ def test_args():
     assert process_args(after=(1, 2)) == ((1, 2), False)
     assert process_args(before=(1, 2)) == ((1, 2), True)
 
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         process_args(before=(1, 2), after=(1, 2))
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         process_args(before=(1, 2), page=(1, 2))
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         process_args(after=(1, 2), page=(1, 2))
     assert process_args(False, False, False) == (None, False)
 
@@ -173,11 +200,3 @@ def test_bookmarks():
     assert serialize_bookmark(last) == '<'
     assert twoway(first)
     assert twoway(last)
-
-
-def test_paging():
-    for db in ['postgresql', 'mysql']:
-        with temporary_database(db) as dburl:
-            fixture_setup(dburl)
-            do_orm_tests(dburl)
-            do_core_tests(dburl)
