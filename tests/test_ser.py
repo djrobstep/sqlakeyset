@@ -1,13 +1,15 @@
 from __future__ import unicode_literals
 
-from sqlakeyset.serial import Serial
-
 import csv
 import io
-from pytest import raises
+import uuid
 import decimal
 import datetime
 import pytz
+
+from pytest import raises
+from sqlakeyset.serial import Serial
+
 utc = pytz.utc
 
 DEFAULTS = dict(
@@ -67,6 +69,8 @@ def test_serial():
     assert s.serialize_value(datetime.datetime(2007, 12, 5, 12, 30, 30, tzinfo=utc)) \
         == 'dt:2007-12-05 12:30:30+00:00'
     assert s.serialize_value(datetime.time(12, 34, 56)) == 't:12:34:56'
+    assert s.serialize_value(uuid.UUID('939d4cc9-830d-4cca-bd74-3ec3d541a9b3')) \
+        == 'uuid:939d4cc9-830d-4cca-bd74-3ec3d541a9b3'
     with raises(NotImplementedError):
         s.serialize_value(csv.reader)
 
@@ -87,6 +91,7 @@ def test_unserial():
     twoway(datetime.date(2007, 12, 5))
     twoway(datetime.datetime(2007, 12, 5, 12, 30, 30, tzinfo=utc))
     twoway(Z('abc'))
+    twoway(uuid.UUID('939d4cc9-830d-4cca-bd74-3ec3d541a9b3'))
 
     with raises(ValueError):
         s.unserialize_value('zzzz:abc')
