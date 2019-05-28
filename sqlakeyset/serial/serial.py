@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import decimal
 import datetime
 import base64
+import uuid
 import dateutil.parser
 
 from .compat import csvreader, csvwriter, sio, text_type, binary_type
@@ -19,6 +20,7 @@ DECIMAL = 'n'
 DATE = 'd'
 DATETIME = 'dt'
 TIME = 't'
+UUID = 'uuid'
 
 
 class Serial(object):
@@ -79,6 +81,8 @@ class Serial(object):
             c = DATETIME
         elif t == datetime.time:
             c = TIME
+        elif t == uuid.UUID:
+            c = UUID
         else:
             raise NotImplementedError(
                 "don't know how to serialize type of {} ({})".format(x, type(x)))
@@ -115,6 +119,8 @@ class Serial(object):
             v = v.date()
         elif c == DATETIME:
             v = dateutil.parser.parse(v)
+        elif c == UUID:
+            v = uuid.UUID(v)
         else:
             raise ValueError('unrecognized value {}'.format(x))
 
