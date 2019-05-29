@@ -20,3 +20,4 @@ tox
 
 sphinx
 wheel
+twine

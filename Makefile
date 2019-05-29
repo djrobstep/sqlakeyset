@@ -21,7 +21,6 @@ stest:
 	$(tcommand) $(tmessy) $(targs) tests
 
 clean:
-	git clean -fXd
 	find . -name \*.pyc -delete
 
 
@@ -35,5 +34,5 @@ tidy: clean fmt lint
 all: pipupgrade clean lint tox
 
 publish:
-	python setup.py register
-	python setup.py sdist bdist_wheel --universal upload
+	python setup.py sdist bdist_wheel --universal
+	twine upload dist/*
