@@ -5,7 +5,7 @@ from functools import partial
 
 import sqlalchemy
 from sqlalchemy import func
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, Mapper
 
 from .columns import parse_clause, OC
 from .results import Page, Paging, unserialize_bookmark
@@ -68,6 +68,10 @@ def value_from_thing(thing, desc, ocol):
         is_a_table = entity == expr
     except sqlalchemy.exc.ArgumentError:
         is_a_table = False
+
+    if isinstance(expr, Mapper) and expr.class_ == entity:
+        # Is a table mapper. Just treat as a table.
+        is_a_table = True
 
     if is_a_table:  # is a table
         mapper = class_mapper(desc['type'])
