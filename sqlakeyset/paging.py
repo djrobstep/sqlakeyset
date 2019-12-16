@@ -199,7 +199,6 @@ def core_get_page(s, selectable, per_page, place, backwards):
 def _get_col_value(el):
     """Extract a "selectable" column value from a ColumnExpression (which might
     be adorned with non-selectable clauses like ASC/DESC)."""
-    ee = el
     try:
         while True:
             el = el.element

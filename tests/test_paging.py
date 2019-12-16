@@ -207,6 +207,7 @@ def test_orm_query_subquery(dburl):
 
 def test_orm_query_recursive_cte(pg_only_dburl):
     with S(pg_only_dburl, echo=ECHO) as s:
+        # Start with "origins": books that don't have prequels
         seed = s.query(Book.id.label('id'), Book.id.label('origin')) \
             .filter(Book.prequel == None)
 
@@ -218,11 +219,12 @@ def test_orm_query_recursive_cte(pg_only_dburl):
             .filter(sequel.prequel_id == recursive.c.id)
         )
 
-        # Aggregate and join
+        # Count total books per origin
         count = func.count().label('count')
         origin = recursive.c.origin.label('origin')
         sq = s.query(origin, count).group_by(origin).cte(recursive=False)
 
+        # Join to full book table
         q = s.query(sq.c.count, Book) \
             .filter(Book.id == sq.c.origin) \
             .order_by(sq.c.count.desc(), Book.id)

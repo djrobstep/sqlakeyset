@@ -21,7 +21,7 @@ def parse_clause(clause):
 
 def _get_order_direction(x):
     """
-    Given a ColumnElement, find and return its ordering direction 
+    Given a ColumnElement, find and return its ordering direction
     (ASC or DESC) if it has one.
 
     :param x: a :class:`sqlalchemy.sql.expression.ColumnElement`
