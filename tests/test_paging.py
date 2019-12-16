@@ -1,7 +1,7 @@
 import warnings
 
 import pytest
-from sqlalchemy import select, String, Column, Integer, ForeignKey, column, table, desc
+from sqlalchemy import select, String, Column, Integer, ForeignKey, column, table, desc, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlbag import temporary_database, S
@@ -48,6 +48,13 @@ def dburl(request):
             b.author = Author(name='Willy Shakespeare')
 
         data.append(b)
+
+    for x in range(count):
+        author = Author(name='Author {}'.format(x))
+        for y in range((2*x) % 10):
+            b = Book(name='Book {}-{}'.format(x, y), a=x+y, b=(y*x) % 2, c=count - x, d=99-y)
+            b.author = author
+            data.append(b)
 
     with temporary_database(request.param) as dburl:
         with S(dburl) as s:
@@ -153,6 +160,15 @@ def test_orm_query3(dburl):
 def test_orm_query4(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.name)
+        check_paging_orm(q=q)
+
+def test_orm_query5(dburl):
+    count = func.count().label('count')
+    spec = [desc(count), desc(Author.name), Author.id]
+
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Author, count).join(Author.books) \
+            .group_by(Author).order_by(*spec)
         check_paging_orm(q=q)
 
 
