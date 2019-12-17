@@ -6,7 +6,7 @@ import base64
 import uuid
 import dateutil.parser
 
-from .compat import csvreader, csvwriter, sio, text_type, binary_type
+from .compat import csvreader, csvwriter, sio, text_type, binary_type, is_integer
 
 
 NONE = 'x'
@@ -69,7 +69,7 @@ class Serial(object):
         elif t == binary_type:
             c = BINARY
             x = base64.b64encode(x).decode('utf-8')
-        elif t == int:
+        elif is_integer(x):
             c = INTEGER
         elif t == float:
             c = FLOAT

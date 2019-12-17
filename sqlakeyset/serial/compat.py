@@ -18,6 +18,13 @@ def encode(x):  # pragma: no cover
     return x.encode('utf-8')
 
 
+def is_integer(x):
+    if PY2:
+        return isinstance(x, (int, long))
+    else:
+        return isinstance(x, int)
+
+
 class UTF8Recoder(object):  # pragma: no cover
     """
     Iterator that reads a text stream and reencodes the input to UTF-8
