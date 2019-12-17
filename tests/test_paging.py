@@ -38,6 +38,51 @@ class Author(Base):
     books = relationship('Book', backref='author')
 
 
+JoinedInheritanceBase = declarative_base()
+
+class Animal(JoinedInheritanceBase):
+    # These columns all have weird names to test we're not relying on defaults
+    id = Column('anim_id', Integer, primary_key=True)
+    category = Column('cat', String(255))
+    name = Column('nnom', String(255))
+    leg_count = Column('lc', Integer, default=0)
+
+    __tablename__ = 'inh_animal'
+    __mapper_args__ = {
+        'polymorphic_on': 'category',
+        'polymorphic_identity': 'animal',
+    }
+
+class Invertebrate(Animal):
+    id = Column('invid', Integer, ForeignKey(Animal.id), primary_key=True)
+    __tablename__ = 'inh_invertebrate'
+    __mapper_args__ = {
+        'polymorphic_identity': 'invertebrate',
+    }
+
+class Vertebrate(Animal):
+    id = Column('random_column_name', Integer, ForeignKey(Animal.id), primary_key=True)
+    vertebra_count = Column(Integer)
+    __tablename__ = 'inh_vertebrate'
+    __mapper_args__ = {
+        'polymorphic_identity': 'vertebrate',
+    }
+
+class Arthropod(Invertebrate):
+    id = Column('unrelated', Integer, ForeignKey(Invertebrate.id), primary_key=True)
+    __tablename__ = 'inh_arthropod'
+    __mapper_args__ = {
+        'polymorphic_identity': 'arthropod',
+    }
+
+class Mammal(Vertebrate):
+    id = Column('mamamammal', Integer, ForeignKey(Vertebrate.id), primary_key=True)
+    nipple_count = Column(Integer)
+    __tablename__ = 'inh_mammal'
+    __mapper_args__ = {
+        'polymorphic_identity': 'mammal',
+    }
+
 def _dburl(request):
     count = 10
     data = []
@@ -70,6 +115,24 @@ def _dburl(request):
 
 dburl = pytest.fixture(params=['postgresql', 'mysql'])(_dburl)
 pg_only_dburl = pytest.fixture(params=['postgresql'])(_dburl)
+@pytest.fixture(params=['postgresql', 'mysql'])
+def joined_inheritance_dburl(request):
+    with temporary_database(request.param) as dburl:
+        with S(dburl) as s:
+            JoinedInheritanceBase.metadata.create_all(s.connection())
+            s.add_all([
+                Mammal(name='Human', vertebra_count=33, leg_count=2, nipple_count=2),
+                Mammal(name='Dog', vertebra_count=36, leg_count=4, nipple_count=10),
+                Invertebrate(name='Jellyfish'),
+                Invertebrate(name='Jellyfish'),
+                Arthropod(name='Spider', leg_count=8),
+                Arthropod(name='Ant', leg_count=6),
+                Arthropod(name='Scorpion', leg_count=8),
+                Arthropod(name='Beetle', leg_count=6),
+                Vertebrate(name='Snake', vertebra_count=300),
+            ])
+        yield dburl
+
 
 def check_paging_orm(q):
     item_counts = range(1, 12)
@@ -229,6 +292,18 @@ def test_orm_query_recursive_cte(pg_only_dburl):
             .filter(Book.id == sq.c.origin) \
             .order_by(sq.c.count.desc(), Book.id)
 
+        check_paging_orm(q=q)
+
+
+def test_orm_query_joined_inheritance(joined_inheritance_dburl):
+    with S(joined_inheritance_dburl, echo=ECHO) as s:
+        q=s.query(Animal).order_by(Animal.leg_count, Animal.id)
+        check_paging_orm(q=q)
+
+        q=s.query(Vertebrate).order_by(Vertebrate.vertebra_count, Vertebrate.id)
+        check_paging_orm(q=q)
+
+        q=s.query(Mammal).order_by(Mammal.nipple_count, Mammal.leg_count, Mammal.id)
         check_paging_orm(q=q)
 
 

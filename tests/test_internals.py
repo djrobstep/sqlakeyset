@@ -21,6 +21,8 @@ def test_oc():
     assert a.is_ascending
     assert not b.is_ascending
     assert not n.reversed.reversed.is_ascending
+    assert n.reversed.is_ascending
+    assert not n.is_ascending # make sure reversed doesn't modify in-place
     assert str(a.element) == str(b.element) == str(n.element)
     assert str(a) == str(b.reversed)
     assert str(n.reversed.reversed) == str(n)
