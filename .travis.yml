@@ -13,9 +13,6 @@ services:
   - postgresql
   - mysql
 
-addons:
-  postgresql: "12.1"
-
 # command to install dependencies
 install: make pip
 
