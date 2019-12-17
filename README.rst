@@ -13,8 +13,6 @@ Background
 
 A lot of people use SQL's ``OFFSET`` syntax to implement paging of query results. The trouble with that is, the more pages you get through, the slower your query gets. Also, if the results you're paging through change frequently, it's possible to skip over or repeat results between pages. Keyset paging avoids these problems: Selecting even the millionth page is as fast as selecting the first.
 
-**sqlakeyset seems to work well so far, but is in its early stages of development, and as such, is alpha software. Treat it accordingly.**
-
 
 Getting Started
 ---------------
@@ -60,7 +58,7 @@ Under the Hood
 sqlakeyset does the following to your query in order to get the paged contents:
 
 - adds a where clause, to get only rows after the specified row key.
-- if getting the previous page, reverses the order by direction in order the get the rows *before* the specified bookmark.
+- if getting the previous page, reverses the ``order by`` direction in order the get the rows *before* the specified bookmark.
 - adds a limit clause, to fetch only enough items to fill the page, plus one additional (this additional row is used only to test for the existence of further pages after the current one, and is discarded from the results).
 - returns the page contents as an ordinary list that has an attached ``.paging`` attribute with the paging information for this and related pages.
 
@@ -120,16 +118,6 @@ Limitations
 - **Golden Rule:** Always ensure your keysets are unique per row. If you violate this condition you risk skipped rows and other nasty problems. The simplest way to do this is to always include your primary key column(s) at the end of your ordering columns.
 
 - If you're using the in-built keyset serialization, this only handles basic data/column types so far (strings, ints, floats, datetimes, dates, booleans, and a few others). The serialization can be extended to serialize more advanced types as necessary (documentation on this is forthcoming).
-
-- **Known MariaDB/MySQL issue:** For performing comparisons, sqlakeyset generates row-value syntax similar to the following:
-
-.. code-block:: sql
-
-  where row('a', 1) > row(name, id)
-
-Indexing support for this syntax in MariaDB/MySQL is apparently faulty. So performance on paging large tables may be poor (Meanwhile, PostgreSQL correctly supports indexing for this syntax).
-
-- **sqlakeyset is alpha software** Please be aware that ``sqlakeyset`` is in its early stage of development. That said, please use it! Your feedback is most welcome (good or bad).
 
 
 Documentation
