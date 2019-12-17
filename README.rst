@@ -1,6 +1,8 @@
 sqlakeyset: offset-free paging for sqlalchemy
 =============================================
 
+**Notice:** In accordance with Python 2's rapidly-approaching end-of-life date, we've stopped supporting Python 2. If you really need it, the latest version to support Python 2 is 0.1.1559103842, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
+
 .. image:: https://travis-ci.org/djrobstep/sqlakeyset.svg?branch=master
     :target: https://travis-ci.org/djrobstep/sqlakeyset
 

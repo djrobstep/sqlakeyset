@@ -9,7 +9,7 @@ with io.open('README.rst') as f:
 
 setup(
     name='sqlakeyset',
-    version='0.1.1559103842',
+    version='0.1.1576554700',
     url='https://github.com/djrobstep/sqlakeyset',
     description='offset-free paging for sqlalchemy',
     long_description=readme,
@@ -22,6 +22,5 @@ setup(
     zip_safe=False,
     packages=find_packages(),
     classifiers=[
-        'Development Status :: 3 - Alpha'
     ]
 )

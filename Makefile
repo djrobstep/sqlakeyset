@@ -22,7 +22,8 @@ stest:
 
 clean:
 	find . -name \*.pyc -delete
-
+	rm -rf build
+	rm -rf dist
 
 lint:
 	flake8 sqlakeyset
