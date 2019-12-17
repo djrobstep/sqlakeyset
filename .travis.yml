@@ -1,6 +1,5 @@
 language: python
 python:
-  - "2.7"
   - "3.6"
 
 before_install:
@@ -15,7 +14,7 @@ services:
   - mysql
 
 addons:
-  postgresql: "9.6"
+  postgresql: "12.1"
 
 # command to install dependencies
 install: make pip
