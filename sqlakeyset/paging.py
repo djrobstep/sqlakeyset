@@ -65,8 +65,11 @@ def value_from_thing(thing, desc, ocol):
     expr = desc['expr']
 
     try:
-        is_a_table = entity == expr
-    except sqlalchemy.exc.ArgumentError:
+        # We need to coerce this to a bool now to catch TypeErrors in certain
+        # cases where (entity == expr) is a SQLAlchemy expression with no
+        # truth value.
+        is_a_table = bool(entity == expr)
+    except (sqlalchemy.exc.ArgumentError, TypeError):
         is_a_table = False
 
     if isinstance(expr, Mapper) and expr.class_ == entity:
@@ -140,7 +143,13 @@ def orm_get_page(q, per_page, place, backwards):
 
     if place:
         condition = where_condition_for_page(order_cols, place)
-        q = q.filter(condition)
+        # For aggregate queries, paging condition is applied *after*
+        # aggregation. In SQL this means we need to use HAVING instead of
+        # WHERE.
+        if q._group_by:
+            q = q.having(condition)
+        else:
+            q = q.filter(condition)
 
     q = q.limit(per_page + 1)
 
@@ -187,15 +196,25 @@ def core_get_page(s, selectable, per_page, place, backwards):
     return page
 
 
+def _get_col_value(el):
+    """Extract a "selectable" column value from a ColumnExpression (which might
+    be adorned with non-selectable clauses like ASC/DESC)."""
+    try:
+        while True:
+            el = el.element
+    except AttributeError:
+        return el
+
+
 def paging_condition(ordering_columns, place):
     if len(ordering_columns) != len(place):
         raise ValueError('bad paging value')
 
     def swapped_if_descending(c, value):
         if not c.is_ascending:
-            return value, c.element
+            return value, _get_col_value(c)
         else:
-            return c.element, value
+            return _get_col_value(c), value
 
     zipped = zip(ordering_columns, place)
     swapped = [swapped_if_descending(c, value) for c, value in zipped]
