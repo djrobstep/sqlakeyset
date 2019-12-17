@@ -3,7 +3,8 @@ import warnings
 import pytest
 from sqlalchemy import select, String, Column, Integer, ForeignKey, column, table, desc, func
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, aliased
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship, aliased, joinedload, column_property
 from sqlbag import temporary_database, S
 
 from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark, OC, process_args
@@ -30,6 +31,11 @@ class Book(Base):
     prequel = relationship('Book', remote_side=[id],
                            backref='sequel', uselist=False)
 
+    popularity = column_property(b + c*d)
+
+    @hybrid_property
+    def score(self):
+        return self.b * self.c - self.d
 
 class Author(Base):
     __tablename__ = 'author'
@@ -161,12 +167,20 @@ def check_paging_orm(q):
 
                 page = paging.further
 
+                if len(gathered) < len(unpaged):
+                    # Ensure each page is the correct size
+                    assert paging.has_further
+                    assert len(page_with_paging) == per_page
+                else:
+                    assert not paging.has_further
+
                 if not page_with_paging:
                     assert not paging.has_further
                     assert paging.further == paging.current
                     assert paging.current_opposite == (None, not paging.backwards)
                     break
 
+            # Ensure union of pages is original q.all()
             assert gathered == unpaged
 
 
@@ -231,6 +245,22 @@ def test_orm_query3(dburl):
 def test_orm_query4(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.name)
+        check_paging_orm(q=q)
+
+
+def test_orm_query_hybrid_property(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.score, Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Book, Author).join(Book.author).order_by(Book.score, Book.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_query_column_property(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.popularity, Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Book, Author).join(Book.author).order_by(Book.popularity.desc(), Book.id)
         check_paging_orm(q=q)
 
 
@@ -300,10 +330,15 @@ def test_orm_query_joined_inheritance(joined_inheritance_dburl):
         q=s.query(Animal).order_by(Animal.leg_count, Animal.id)
         check_paging_orm(q=q)
 
-        q=s.query(Vertebrate).order_by(Vertebrate.vertebra_count, Vertebrate.id)
+        q=s.query(Vertebrate).order_by(Vertebrate.vertebra_count, Animal.id)
         check_paging_orm(q=q)
 
         q=s.query(Mammal).order_by(Mammal.nipple_count, Mammal.leg_count, Mammal.id)
+        check_paging_orm(q=q)
+
+        # Mix up accessing columns at various heirarchy levels
+        q=s.query(Mammal).order_by(Mammal.nipple_count, Mammal.leg_count,
+                                   Vertebrate.vertebra_count, Animal.id)
         check_paging_orm(q=q)
 
 

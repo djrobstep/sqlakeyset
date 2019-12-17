@@ -6,6 +6,8 @@ from functools import partial
 import sqlalchemy
 from sqlalchemy import func
 from sqlalchemy.orm import class_mapper, Mapper
+from sqlalchemy.util import lightweight_named_tuple
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm.exc import UnmappedColumnError
 
 from .columns import parse_clause, OC
@@ -28,16 +30,34 @@ def where_condition_for_page(ordering_columns, place):
     return condition
 
 
+def orm_clean_row(row, key_entities, result_type):
+    if key_entities:
+        n = len(row) - len(key_entities)
+        return result_type(row[:n]), row[n:]
+    else:
+        return row, ()
+
+
 def orm_page_from_rows(
         rows,
         page_size,
         ocols,
         column_descriptions,
+        key_entities,
+        result_type,
         backwards=False,
         current_marker=None):
+    rows_and_keys = [orm_clean_row(row, key_entities, result_type)
+                     for row in rows]
+    rows = [r for r, _ in rows_and_keys]
+    row_keys=dict(rows_and_keys)
+
     get_marker = partial(
         orm_placemarker_from_row,
-        column_descriptions=column_descriptions)
+        column_descriptions=column_descriptions,
+        key_entities=key_entities,
+        row_keys=row_keys,
+    )
 
     paging = Paging(rows, page_size, ocols, backwards, current_marker, get_marker)
 
@@ -102,24 +122,21 @@ def value_from_thing(thing, desc, ocol):
         raise ValueError
 
 
-def orm_placemarker_from_row(row, ocols, column_descriptions):
+def orm_placemarker_from_row(row, ocols, column_descriptions,
+                             key_entities, row_keys):
     cant_find = "can't find value for column {} in the results returned"
-    if len(column_descriptions) == 1:
-        def get_value(ocol):
-            desc = column_descriptions[0]
+    one_entity = len(column_descriptions) == 1
+    def get_value(ocol):
+        if ocol in key_entities:
+            index, _ = key_entities[ocol]
+            return row_keys[row][index]
+        for thing, desc in zip([row] if one_entity else row,
+                               column_descriptions):
             try:
-                return value_from_thing(row, desc, ocol)
+                return value_from_thing(thing, desc, ocol)
             except ValueError:
-                pass
-            raise ValueError(cant_find.format(ocol.full_name))
-    else:
-        def get_value(ocol):
-            for thing, desc in zip(row, column_descriptions):
-                try:
-                    return value_from_thing(thing, desc, ocol)
-                except ValueError:
-                    continue
-            raise ValueError(cant_find.format(ocol.full_name))
+                continue
+        raise ValueError(cant_find.format(ocol.full_name))
 
     return tuple(get_value(x) for x in ocols)
 
@@ -129,6 +146,61 @@ def core_placemarker_from_row(row, ocols):
         return row[ocol.name]
 
     return tuple(get_value(x) for x in ocols)
+
+
+def orm_key_entity(ocol, column_descriptions):
+    for desc in column_descriptions:
+        entity = desc['entity']
+        expr = desc['expr']
+
+        try:
+            is_a_table = bool(entity == expr)
+        except (sqlalchemy.exc.ArgumentError, TypeError):
+            is_a_table = False
+
+        if isinstance(expr, Mapper) and expr.class_ == entity:
+            is_a_table = True
+
+        if is_a_table:  # is a table
+            mapper = class_mapper(desc['type'])
+            try:
+                prop = mapper.get_property_by_column(ocol.element)
+                return None
+            except UnmappedColumnError:
+                pass
+
+        # is an attribute
+        if hasattr(expr, 'info'):
+            mapper = expr.parent
+            tname = mapper.local_table.description
+            if ocol.table_name == tname and ocol.name == expr.name:
+                return None
+
+        # is an attribute with label
+        try:
+            if ocol.quoted_full_name == OC(expr).full_name:
+                return None
+        except ArgumentError:
+            pass
+
+    # Couldn't find an existing column in the query from which we can
+    # determine this ordering column; so we need to add one.
+    return _get_col_value(ocol)
+
+
+def orm_key_entities(ocols, column_descriptions, starting_index=0):
+    es = ((starting_index + i, c, orm_key_entity(c, column_descriptions))
+          for i, c in enumerate(ocols))
+    return {c: (i,e) for i, c, e in es if e is not None}
+
+
+def orm_result_type(query):
+    labels = [e._label_name for e in query._entities]
+
+    if len(labels) > 1:
+        return lightweight_named_tuple("result", labels)
+    else:
+        return lambda x: x[0]
 
 
 def orm_get_page(q, per_page, place, backwards):
@@ -141,6 +213,15 @@ def orm_get_page(q, per_page, place, backwards):
 
     clauses = [c.uo for c in order_cols]
     q = q.order_by(False).order_by(*clauses)
+
+    result_type = orm_result_type(q)
+    key_entities = orm_key_entities(order_cols, q.column_descriptions)
+    existing_entities = (e.expr for e in q._entities)
+    column_descriptions = q.column_descriptions
+    q = q.with_entities(
+        *existing_entities,
+        *(key_ent for (_, key_ent) in key_entities.values())
+    )
 
     if place:
         condition = where_condition_for_page(order_cols, place)
@@ -160,7 +241,9 @@ def orm_get_page(q, per_page, place, backwards):
         rows,
         per_page,
         order_cols,
-        q.column_descriptions,
+        column_descriptions,
+        key_entities,
+        result_type,
         backwards,
         current_marker=place)
 
