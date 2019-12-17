@@ -6,6 +6,7 @@ from functools import partial
 import sqlalchemy
 from sqlalchemy import func
 from sqlalchemy.orm import class_mapper, Mapper
+from sqlalchemy.orm.exc import UnmappedColumnError
 
 from .columns import parse_clause, OC
 from .results import Page, Paging, unserialize_bookmark
@@ -78,10 +79,10 @@ def value_from_thing(thing, desc, ocol):
 
     if is_a_table:  # is a table
         mapper = class_mapper(desc['type'])
-        if entity.__table__.name == ocol.table_name:
+        try:
             prop = mapper.get_property_by_column(ocol.element)
             return getattr(thing, prop.key)
-        else:
+        except UnmappedColumnError:
             raise ValueError
 
     # is an attribute
