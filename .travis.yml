@@ -7,7 +7,7 @@ before_install:
 
 sudo: required
 
-dist: trusty
+dist: bionic
 
 services:
   - postgresql
