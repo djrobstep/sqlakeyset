@@ -1,6 +1,7 @@
 """The OC class and supporting functions to manipulate ordering columns."""
 from __future__ import (absolute_import, division, print_function, unicode_literals)
 
+from warnings import warn
 import sys
 
 from sqlalchemy import asc, column
@@ -10,6 +11,7 @@ from sqlalchemy.sql.operators import asc_op, desc_op, nullsfirst_op, nullslast_o
 
 _LABELLED = (Label, _label_reference)
 _ORDER_MODIFIERS = (asc_op, desc_op, nullsfirst_op, nullslast_op)
+_UNSUPPORTED_ORDER_MODIFIERS = (nullsfirst_op, nullslast_op)
 _WRAPPING_DEPTH = 1000
 _WRAPPING_OVERFLOW = ("Maximum element wrapping depth reached; there's "
                       "probably a circularity in sqlalchemy that "
@@ -22,8 +24,18 @@ if not PY2:
 
 
 def parse_clause(clause):
+    """Parse an ORDER BY clause into a list of :class:`OC` instances."""
     return [OC(c) for c in clause]
    
+
+def _warn_if_nullable(x):
+    try:
+        if x.nullable or x.property.columns[0].nullable:
+            warn(f"Ordering by nullable column {x} can cause rows to be "
+                 "incorrectly omitted from the results. "
+                 "See the sqlakeyset README for more details.")
+    except (AttributeError, IndexError, KeyError):
+        pass
 
 class OC(object):
     """Wrapper class for ordering columns; i.e. ColumnElements appearing in
@@ -34,6 +46,7 @@ class OC(object):
         if _get_order_direction(x) is None:
             x = asc(x)
         self.uo = x
+        _warn_if_nullable(self.comparable_value)
         self.full_name = str(self.element)
         try:
             table_name, name = self.full_name.split('.', 1)
@@ -76,9 +89,6 @@ class OC(object):
     @property
     def reversed(self):
         """Get an OC representing the same column ordering, but reversed."""
-        # TODO: swapping asc/desc does NOT exactly reverse the order when nulls
-        # are present. We should use NULLS FIRST/NULLS LAST appropriately, at
-        # least when the SQL dialect supports them.
         new_uo = _reverse_order_direction(self.uo)
         if new_uo is None:
             raise ValueError
@@ -115,8 +125,6 @@ def _reverse_order_direction(ce):
     Given a ColumnElement, return a copy with its ordering direction
     (ASC or DESC) reversed (if it has one).
 
-    Does NOT yet handle NULLS FIRST/LAST correctly.
-
     :param ce: a :class:`sqlalchemy.sql.expression.ColumnElement`
     """
     x = copied = ce._clone()
@@ -149,6 +157,12 @@ def _remove_order_direction(ce):
     parent = None
     for _ in range(_WRAPPING_DEPTH):
         mod = getattr(x, 'modifier', None)
+        if mod in _UNSUPPORTED_ORDER_MODIFIERS:
+            warn("One of your order columns had a NULLS FIRST or NULLS LAST "
+                 "modifier; but sqlakeyset does not support order columns "
+                 "with nulls. YOUR RESULTS WILL BE WRONG. See the "
+                 "Limitations section of the sqlakeyset README for more "
+                 "information.")
         if mod in _ORDER_MODIFIERS:
             x._copy_internals()
             if parent is None:

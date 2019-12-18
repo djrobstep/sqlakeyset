@@ -21,11 +21,11 @@ BOOK = 't_Book'
 class Book(Base):
     __tablename__ = BOOK
     id = Column('book_id', Integer, primary_key=True)
-    name = Column(String(255))
+    name = Column(String(255), nullable=False)
     a = Column(Integer)
-    b = Column(Integer)
+    b = Column(Integer, nullable=False)
     c = Column(Integer)
-    d = Column(Integer)
+    d = Column(Integer, nullable=False)
     author_id = Column(Integer, ForeignKey('author.id'))
     prequel_id = Column(Integer, ForeignKey(id), nullable=True)
     prequel = relationship('Book', remote_side=[id],
@@ -40,7 +40,7 @@ class Book(Base):
 class Author(Base):
     __tablename__ = 'author'
     id = Column(Integer, primary_key=True)
-    name = Column(String(255))
+    name = Column(String(255), nullable=False)
     books = relationship('Book', backref='author')
 
     @hybrid_property
@@ -59,9 +59,9 @@ JoinedInheritanceBase = declarative_base()
 class Animal(JoinedInheritanceBase):
     # These columns all have weird names to test we're not relying on defaults
     id = Column('anim_id', Integer, primary_key=True)
-    category = Column('cat', String(255))
+    category = Column('cat', String(255), nullable=False)
     name = Column('nnom', String(255))
-    leg_count = Column('lc', Integer, default=0)
+    leg_count = Column('lc', Integer, nullable=False, default=0)
 
     __tablename__ = 'inh_animal'
     __mapper_args__ = {
@@ -78,7 +78,7 @@ class Invertebrate(Animal):
 
 class Vertebrate(Animal):
     id = Column('random_column_name', Integer, ForeignKey(Animal.id), primary_key=True)
-    vertebra_count = Column(Integer)
+    vertebra_count = Column(Integer, nullable=False, default=0)
     __tablename__ = 'inh_vertebrate'
     __mapper_args__ = {
         'polymorphic_identity': 'vertebrate',
@@ -93,7 +93,7 @@ class Arthropod(Invertebrate):
 
 class Mammal(Vertebrate):
     id = Column('mamamammal', Integer, ForeignKey(Vertebrate.id), primary_key=True)
-    nipple_count = Column(Integer)
+    nipple_count = Column(Integer, nullable=False, default=0)
     __tablename__ = 'inh_mammal'
     __mapper_args__ = {
         'polymorphic_identity': 'mammal',
@@ -412,3 +412,10 @@ def test_bookmarks():
     assert serialize_bookmark(last) == '<'
     assert twoway(first)
     assert twoway(last)
+
+
+def test_warn_when_sorting_by_nullable(dburl):
+    with pytest.warns(UserWarning):
+        with S(dburl, echo=ECHO) as s:
+            q = s.query(Book).order_by(Book.a, Book.id)
+            get_page(q, per_page=10, page=(None, False))

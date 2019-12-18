@@ -1,11 +1,12 @@
-from pytest import raises
-from sqlalchemy import asc, desc, Column, Integer, String
+from pytest import raises, warns, mark
+from sqlalchemy import asc, desc, Column, Integer, String, column
 from sqlalchemy.sql.expression import nullslast
 
 from sqlakeyset import OC, Paging, Page
 from sqlakeyset import serialize_bookmark
 
 
+@mark.filterwarnings("ignore:One of your order columns had a NULLS")
 def test_oc():
     a = asc('a')
     b = desc('a')
@@ -114,7 +115,8 @@ def test_paging_object2_per_page_2():
 
 
 def test_paging_object_text():
-    ob = [OC(Column('id', Integer)), OC(Column('name', String))]
+    ob = [OC(Column('id', Integer, nullable=False)),
+          OC(Column('name', String, nullable=False))]
 
     p = Paging(T3, 2, ob, backwards=False, current_marker=None, get_marker=getitem)
 
@@ -131,3 +133,8 @@ def test_paging_object_text():
     general_asserts(p)
 
     assert p.further
+
+def test_warn_on_nullslast():
+    with warns(UserWarning):
+        ob = [OC(nullslast(column('id')))]
+        p = Paging(T1, 10, ob, backwards=False, current_marker=None, get_marker=getitem)
