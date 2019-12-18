@@ -43,6 +43,16 @@ class Author(Base):
     name = Column(String(255))
     books = relationship('Book', backref='author')
 
+    @hybrid_property
+    def book_count(self):
+        return len(self.books)
+
+    @book_count.expression
+    def book_count(cls):
+        return select([func.count(Book.id)]) \
+            .where(Book.author_id == cls.id) \
+            .label('book_count')
+
 
 JoinedInheritanceBase = declarative_base()
 
@@ -261,6 +271,22 @@ def test_orm_query_column_property(dburl):
         q = s.query(Book).order_by(Book.popularity, Book.id)
         check_paging_orm(q=q)
         q = s.query(Book, Author).join(Book.author).order_by(Book.popularity.desc(), Book.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_query_correlated_subquery_hybrid(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Author.id, Author.name).order_by(Author.book_count, Author.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_query_expression(dburl):
+    with S(dburl, echo=ECHO) as s:
+        key = func.coalesce(Book.a,0) + Book.b
+        q = s.query(Book).order_by(key, Book.id)
+        check_paging_orm(q=q)
+
+        q = s.query(Book).order_by(key.label('sort_by_me'), Book.id)
         check_paging_orm(q=q)
 
 

@@ -1,3 +1,4 @@
+"""Main paging interface and implementation."""
 from __future__ import unicode_literals
 
 import sys
@@ -47,6 +48,9 @@ def orm_page_from_rows(
         result_type,
         backwards=False,
         current_marker=None):
+    # orm_get_page might have added some extra columns to the query in order
+    # to get the keys for the bookmark. Here, we extract those keys into a
+    # dict, and then trim the rows back to their original format.
     rows_and_keys = [orm_clean_row(row, key_entities, result_type)
                      for row in rows]
     rows = [r for r, _ in rows_and_keys]
@@ -128,6 +132,8 @@ def orm_placemarker_from_row(row, ocols, column_descriptions,
     one_entity = len(column_descriptions) == 1
     def get_value(ocol):
         if ocol in key_entities:
+            # We added this ocol to the query explicitly; so we can just go 
+            # and get it.
             index, _ = key_entities[ocol]
             return row_keys[row][index]
         for thing, desc in zip([row] if one_entity else row,
@@ -149,6 +155,9 @@ def core_placemarker_from_row(row, ocols):
 
 
 def orm_key_entity(ocol, column_descriptions):
+    """Determine whether the value of `ocol` can be derived from a result row
+    described by `column_descriptions`. If so, return None. If not, return an
+    extra column expression containing the value of `ocol`."""
     for desc in column_descriptions:
         entity = desc['entity']
         expr = desc['expr']
@@ -185,7 +194,7 @@ def orm_key_entity(ocol, column_descriptions):
 
     # Couldn't find an existing column in the query from which we can
     # determine this ordering column; so we need to add one.
-    return _get_col_value(ocol)
+    return ocol.element
 
 
 def orm_key_entities(ocols, column_descriptions, starting_index=0):
@@ -213,11 +222,17 @@ def orm_get_page(q, per_page, place, backwards):
 
     clauses = [c.uo for c in order_cols]
     q = q.order_by(False).order_by(*clauses)
+    column_descriptions = q.column_descriptions
 
+    # We might have to add some entities to the query in order to get our
+    # bookmark; so first save the result type of the original query so we can
+    # restore it later.
+    # TODO: is there a cleaner way to do this? Perhaps similarly to how sa's
+    # joinedload, etc, works?
     result_type = orm_result_type(q)
+    # Then work out which entities we need to add, and add them.
     key_entities = orm_key_entities(order_cols, q.column_descriptions)
     existing_entities = (e.expr for e in q._entities)
-    column_descriptions = q.column_descriptions
     q = q.with_entities(
         *existing_entities,
         *(key_ent for (_, key_ent) in key_entities.values())
@@ -280,25 +295,15 @@ def core_get_page(s, selectable, per_page, place, backwards):
     return page
 
 
-def _get_col_value(el):
-    """Extract a "selectable" column value from a ColumnExpression (which might
-    be adorned with non-selectable clauses like ASC/DESC)."""
-    try:
-        while True:
-            el = el.element
-    except AttributeError:
-        return el
-
-
 def paging_condition(ordering_columns, place):
     if len(ordering_columns) != len(place):
         raise ValueError('bad paging value')
 
     def swapped_if_descending(c, value):
         if not c.is_ascending:
-            return value, _get_col_value(c)
+            return value, c.comparable_value
         else:
-            return _get_col_value(c), value
+            return c.comparable_value, value
 
     zipped = zip(ordering_columns, place)
     swapped = [swapped_if_descending(c, value) for c, value in zipped]

@@ -1,3 +1,4 @@
+"""Result data structures and bookmark handling."""
 from __future__ import unicode_literals
 
 from .serial import Serial

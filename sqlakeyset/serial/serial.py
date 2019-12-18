@@ -1,3 +1,4 @@
+"""Bookmark (de)serialization logic."""
 from __future__ import unicode_literals
 
 import decimal
