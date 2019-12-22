@@ -1,9 +1,9 @@
-"""Result data structures and bookmark handling."""
+"""Paging data structures and bookmark handling."""
 from __future__ import unicode_literals
 
-from .serial import Serial
-
 import csv
+
+from .serial import Serial
 
 SERIALIZER_SETTINGS = dict(
     lineterminator=str(''),
@@ -16,6 +16,7 @@ s = Serial(**SERIALIZER_SETTINGS)
 
 
 def serialize_bookmark(x):
+    """Serialize a place marker to a bookmark string."""
     x, backwards = x
     ss = s.serialize_values(x)
     direction = '<' if backwards else '>'
@@ -23,6 +24,7 @@ def serialize_bookmark(x):
 
 
 def unserialize_bookmark(x):
+    """Deserialize a bookmark string to a place marker."""
     if not x:
         return None, False
 
@@ -37,10 +39,16 @@ def unserialize_bookmark(x):
 
 
 class Page(list):
+    """A :class:`list` of result rows with access to paging information and
+    some convenience methods."""
     def scalar(self):
+        """Assuming paging was called with ``per_page=1`` and a single-column
+        query, return the single value."""
         return self.one()[0]
 
     def one(self):
+        """Assuming paging was called with ``per_page=1``, return the single
+        row on this page."""
         c = len(self)
 
         if c < 1:
@@ -50,44 +58,11 @@ class Page(list):
         else:
             return self[0]
 
-    def keys(self):
-        return self._keys
 
-
-class Paging(object):
-    """
-    Object with paging information. Most properties return a page marker. Prefix these properties with 'bookmark_' to get the serialized version of that page marker. Naming conventions are as follows:
-
-    Ordering as returned by the query
-    ---------------------------------
-
-    - 0: the key used in the where clause
-    - 1: the key of the first row returned
-    - n: the key of the nth row returned
-    - nplus1: the marker of the row returned beyond n
-    - further: the direction continuing in this order
-
-
-    Ordering once flipped if necessary (ie for backwards-facing pages)
-    ------------------------------------------------------------------
-
-    - next: the next page
-    - previous: the previous page
-
-    - current_forward: the marker
-    - current_backward: the marker for this page going backwards
-    - current: the marker as actually used
-    - current_opposite: the marker for the same page in the opposite direction
-
-
-    Tests
-    -----
-
-    - has_next: True if there's more rows after this page.
-    - has_previous: True if there's more rows before this page.
-    - has_further: True if there's more rows in the paging direction.
-
-    """
+class Paging:
+    """Object with paging information. Most properties return a page marker.
+    Prefix these properties with ``bookmark_`` to get the serialized version of
+    that page marker."""
 
     def __init__(
             self,
@@ -96,10 +71,15 @@ class Paging(object):
             ocols,
             backwards,
             current_marker,
-            get_marker,
-            keys=None):
+            get_marker=None,
+            markers=None):
 
-        self._keys = keys
+        if get_marker:
+            marker = lambda i: get_marker(rows[i], ocols)
+        else:
+            if rows and not markers:
+                raise ValueError
+            marker = markers.__getitem__
 
         self.original_rows = rows
 
@@ -107,24 +87,24 @@ class Paging(object):
         self.backwards = backwards
 
         excess = rows[per_page:]
-        rows = rows[:per_page]
-        self.rows = rows
-
         self.marker_0 = current_marker
 
         if rows:
-            self.marker_1 = get_marker(rows[0], ocols)
-            self.marker_n = get_marker(rows[-1], ocols)
+            self.marker_1 = marker(0)
+            self.marker_n = marker(min(per_page, len(rows)) - 1)
         else:
             self.marker_1 = None
             self.marker_n = None
 
         if excess:
-            self.marker_nplus1 = get_marker(excess[0], ocols)
+            self.marker_nplus1 = marker(per_page)
         else:
             self.marker_nplus1 = None
 
         four = [self.marker_0, self.marker_1, self.marker_n, self.marker_nplus1]
+
+        rows = rows[:per_page]
+        self.rows = rows
 
         if backwards:
             self.rows.reverse()
@@ -134,30 +114,39 @@ class Paging(object):
 
     @property
     def has_next(self):
+        """Boolean flagging whether there are more rows after this page (in the
+        original query order)."""
         return bool(self.beyond)
 
     @property
     def has_previous(self):
+        """Boolean flagging whether there are more rows before this page (in the
+        original query order)."""
         return bool(self.before)
 
     @property
     def next(self):
+        """Marker for the next page (in the original query order)."""
         return (self.last or self.before), False
 
     @property
     def previous(self):
+        """Marker for the previous page (in the original query order)."""
         return (self.first or self.beyond), True
 
     @property
     def current_forwards(self):
+        """Marker for the current page in forwards direction."""
         return self.before, False
 
     @property
     def current_backwards(self):
+        """Marker for the current page in backwards direction."""
         return self.beyond, True
 
     @property
     def current(self):
+        """Marker for the current page in the current direction."""
         if self.backwards:
             return self.current_backwards
         else:
@@ -165,6 +154,8 @@ class Paging(object):
 
     @property
     def current_opposite(self):
+        """Marker for the current page in the opposite of the current
+        direction."""
         if self.backwards:
             return self.current_forwards
         else:
@@ -172,6 +163,8 @@ class Paging(object):
 
     @property
     def further(self):
+        """Marker for the following page in the paging direction (as modified
+        by ``backwards``)."""
         if self.backwards:
             return self.previous
         else:
@@ -179,6 +172,8 @@ class Paging(object):
 
     @property
     def has_further(self):
+        """Boolean flagging whether there are more rows before this page in the
+        paging direction (as modified by ``backwards``)."""
         if self.backwards:
             return self.has_previous
         else:
@@ -186,6 +181,8 @@ class Paging(object):
 
     @property
     def is_full(self):
+        """Boolean flagging whether this page contains as many rows as were
+        requested in ``per_page``."""
         return len(self.rows) == self.per_page
 
     def __getattr__(self, name):

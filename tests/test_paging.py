@@ -4,10 +4,12 @@ import pytest
 from sqlalchemy import select, String, Column, Integer, ForeignKey, column, table, desc, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, aliased, joinedload, column_property
+from sqlalchemy.orm import relationship, aliased, joinedload, column_property, Bundle
 from sqlbag import temporary_database, S
 
-from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark, OC, process_args
+from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark
+from sqlakeyset.paging import process_args
+from sqlakeyset.columns import OC
 
 warnings.simplefilter("error")
 
@@ -24,7 +26,7 @@ class Book(Base):
     name = Column(String(255), nullable=False)
     a = Column(Integer)
     b = Column(Integer, nullable=False)
-    c = Column(Integer)
+    c = Column(Integer, nullable=False)
     d = Column(Integer, nullable=False)
     author_id = Column(Integer, ForeignKey('author.id'))
     prequel_id = Column(Integer, ForeignKey(id), nullable=True)
@@ -348,6 +350,21 @@ def test_orm_query_recursive_cte(pg_only_dburl):
             .filter(Book.id == sq.c.origin) \
             .order_by(sq.c.count.desc(), Book.id)
 
+        check_paging_orm(q=q)
+
+
+def test_orm_order_by_bundle(dburl):
+    Scorecard = Bundle('scorecard',
+                       # CW: existential horror
+                       Book.score.label('popularity'),
+                       Book.popularity.label('score'))
+
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Scorecard, Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Book, Scorecard).order_by(Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Scorecard).order_by(Scorecard.c.popularity, Book.id)
         check_paging_orm(q=q)
 
 

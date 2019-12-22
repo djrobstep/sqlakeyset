@@ -4,9 +4,10 @@ from sqlalchemy.sql.expression import nullslast
 
 from sqlakeyset import OC, Paging, Page
 from sqlakeyset import serialize_bookmark
+from sqlakeyset.columns import DerivedKey
 
 
-@mark.filterwarnings("ignore:One of your order columns had a NULLS")
+@mark.filterwarnings("ignore:.*NULLS FIRST.*")
 def test_oc():
     a = asc('a')
     b = desc('a')
@@ -32,6 +33,13 @@ def test_oc():
     assert n.name == 'a'
     assert n.quoted_full_name == 'a'
     assert repr(n) == '<OC: a DESC NULLS LAST>'
+
+
+def test_okeys():
+    a = DerivedKey(OC(asc('a')), lambda x:x)
+    b = DerivedKey(OC(desc('b')), lambda x:x)
+    assert a.oc.is_ascending
+    assert not b.oc.is_ascending
 
 
 def general_asserts(p):

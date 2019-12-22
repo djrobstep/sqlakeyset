@@ -101,7 +101,7 @@ And the last page:
 Keyset Serialization
 --------------------
 
-You will probably want to turn these keysets/bookmarks for passing around. ``sqlakeyset`` includes code to do this. To get a serialized bookmark, just add ``bookmark_`` to the name of the property that holds the keyset you want.
+You will probably want to turn these keysets/bookmarks into strings for passing around. ``sqlakeyset`` includes code to do this. To get a serialized bookmark, just add ``bookmark_`` to the name of the property that holds the keyset you want.
 
 Most commonly you'll want ``next`` and ``previous``, so:
 

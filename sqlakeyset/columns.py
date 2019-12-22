@@ -1,11 +1,12 @@
 """The OC class and supporting functions to manipulate ordering columns."""
-from __future__ import (absolute_import, division, print_function, unicode_literals)
-
 from warnings import warn
-import sys
+from copy import copy
 
+import sqlalchemy
 from sqlalchemy import asc, column
-from sqlalchemy.sql.expression import UnaryExpression, Label
+from sqlalchemy.exc import ArgumentError
+from sqlalchemy.orm import Bundle, Mapper, class_mapper
+from sqlalchemy.sql.expression import Label, ClauseList
 from sqlalchemy.sql.elements import _label_reference
 from sqlalchemy.sql.operators import asc_op, desc_op, nullsfirst_op, nullslast_op
 
@@ -17,16 +18,19 @@ _WRAPPING_OVERFLOW = ("Maximum element wrapping depth reached; there's "
                       "probably a circularity in sqlalchemy that "
                       "sqlakeyset doesn't know how to handle.")
 
-PY2 = sys.version_info.major <= 2
-
-if not PY2:
-    unicode = str
-
 
 def parse_clause(clause):
     """Parse an ORDER BY clause into a list of :class:`OC` instances."""
-    return [OC(c) for c in clause]
-   
+    def _flatten(cl):
+        if isinstance(cl, ClauseList):
+            for subclause in cl.clauses:
+                # TODO: could use "yield from" here if we require python>=3.3
+                for x in _flatten(subclause):
+                    yield x
+        else:
+            yield cl
+    return [OC(c) for c in _flatten(clause)]
+
 
 def _warn_if_nullable(x):
     try:
@@ -37,11 +41,11 @@ def _warn_if_nullable(x):
     except (AttributeError, IndexError, KeyError):
         pass
 
-class OC(object):
+class OC:
     """Wrapper class for ordering columns; i.e. ColumnElements appearing in
     the ORDER BY clause of a query we are paging."""
     def __init__(self, x):
-        if isinstance(x, unicode):
+        if isinstance(x, str):
             x = column(x)
         if _get_order_direction(x) is None:
             x = asc(x)
@@ -63,24 +67,20 @@ class OC(object):
 
     @property
     def element(self):
-        """Get a copy of the wrapped column with ordering modifier removed."""
+        """The ordering column/SQL expression with ordering modifier removed."""
         return _remove_order_direction(self.uo)
 
     @property
     def comparable_value(self):
-        """Get a copy of the wrapped column that is suitable for incorporating
-        in a ROW(...)>ROW(...) comparision; i.e. with ordering modifiers and
-        labels removed."""
-        el = self.element
-        while isinstance(el, _LABELLED):
-            try:
-                el = el.element
-            except AttributeError:
-                raise ValueError
-        return el
+        """The ordering column/SQL expression in a form that is suitable for
+        incorporating in a ROW(...)>ROW(...) comparision; i.e. with ordering
+        modifiers and labels removed."""
+        return strip_labels(self.element)
 
     @property
     def is_ascending(self):
+        """Returns ``True`` if this column is ascending, ``False`` if
+        descending."""
         d = _get_order_direction(self.uo)
         if d is None:
             raise ValueError  # pragma: no cover
@@ -88,7 +88,7 @@ class OC(object):
 
     @property
     def reversed(self):
-        """Get an OC representing the same column ordering, but reversed."""
+        """An :class:`OC` representing the same column ordering, but reversed."""
         new_uo = _reverse_order_direction(self.uo)
         if new_uo is None:
             raise ValueError
@@ -99,6 +99,15 @@ class OC(object):
 
     def __repr__(self):
         return '<OC: {}>'.format(str(self))
+
+def strip_labels(el):
+    """Remove labels from a ColumnElement."""
+    while isinstance(el, _LABELLED):
+        try:
+            el = el.element
+        except AttributeError:
+            raise ValueError
+    return el
 
 
 def _get_order_direction(x):
@@ -119,6 +128,7 @@ def _get_order_direction(x):
             return None
         x = el
     raise Exception(_WRAPPING_OVERFLOW)
+
 
 def _reverse_order_direction(ce):
     """
@@ -181,3 +191,119 @@ def _remove_order_direction(ce):
             x._copy_internals()
             x = x.element
     raise Exception(_WRAPPING_OVERFLOW)
+
+
+class MappedOrderColumn:
+    """An ordering column in the context of a particular query/select.
+
+    This wraps an OC with one extra piece of information: how to retrieve the
+    value of the ordering key from a result row. For some queries, this
+    requires adding extra entities to the query; in this case,
+    ``extra_entity`` will be set."""
+
+    extra_entity = None
+    def __init__(self, oc):
+        self.oc = oc
+
+    @property
+    def ob_clause(self):
+        return self.oc.uo
+
+    @property
+    def reversed(self):
+        c = copy(self)
+        c.oc = c.oc.reversed
+        return c
+
+
+class DerivedKey(MappedOrderColumn):
+    """An ordering key that can be derived from the original query results."""
+    def __init__(self, oc, getter):
+        super().__init__(oc)
+        self.getter = getter
+
+    def get_from_row(self, internal_row):
+        return self.getter(internal_row)
+
+
+class AppendedKey(MappedOrderColumn):
+    """An ordering key that requires an additional column to be added to the
+    original query."""
+    _counter = 0
+    def __init__(self, oc, name=None):
+        super().__init__(oc)
+        if not name:
+            AppendedKey._counter += 1
+            name = "_sqlakeyset_oc_{}".format(AppendedKey._counter)
+        self.name = name
+        self.extra_entity = self.oc.comparable_value.label(self.name)
+
+    def get_from_row(self, internal_row):
+        return getattr(internal_row, self.name)
+
+    @property
+    def ob_clause(self):
+        return self.extra_entity
+
+def ColumnDerivedKey(colname, oc, getter):
+    """Convenience wrapper - an ordering key that can be derived from a single
+    column of the original query results."""
+    return DerivedKey(oc, lambda row: getter(getattr(row, colname)))
+
+
+def find_order_key(ocol, column_descriptions):
+    """Return a :class:`MappedOrderColumn` describing how to populate the
+    ordering column `ocol` from a query returning columns described by
+    `column_descriptions`.
+
+    :param ocol: The :class:`OC` to look up.
+    :param column_descriptions: The list of columns from which to attempt to
+        derive the value of ``ocol``.
+    :returns: A :class:`MappedOrderColumn` wrapping ``ocol``.
+"""
+    for desc in column_descriptions:
+        name = desc['name']
+        entity = desc['entity']
+        expr = desc['expr']
+
+        if isinstance(expr, Bundle):
+            for prop, col in expr.columns.items():
+                if strip_labels(col) == ocol.comparable_value:
+                    return ColumnDerivedKey(name, ocol,
+                                            lambda c: getattr(c, prop))
+
+        try:
+            is_a_table = bool(entity == expr)
+        except (sqlalchemy.exc.ArgumentError, TypeError):
+            is_a_table = False
+
+        if isinstance(expr, Mapper) and expr.class_ == entity:
+            is_a_table = True
+
+        if is_a_table:  # is a table
+            mapper = class_mapper(desc['type'])
+            try:
+                prop = mapper.get_property_by_column(ocol.element)
+                return ColumnDerivedKey(name, ocol,
+                                        lambda c: getattr(c, prop.key))
+            except sqlalchemy.orm.exc.UnmappedColumnError:
+                pass
+
+        # is an attribute
+        if hasattr(expr, 'info'):
+            mapper = expr.parent
+            tname = mapper.local_table.description
+            if ocol.table_name == tname and ocol.name == expr.name:
+                return ColumnDerivedKey(name, ocol, lambda c: c)
+
+        # is an attribute with label
+        try:
+            if ocol.quoted_full_name == OC(expr).full_name:
+                return ColumnDerivedKey(name, ocol, lambda c: c)
+        except ArgumentError:
+            pass
+
+    # Couldn't find an existing column in the query from which we can
+    # determine this ordering column; so we need to add one.
+    return AppendedKey(ocol)
+
