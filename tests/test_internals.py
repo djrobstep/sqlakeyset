@@ -1,10 +1,13 @@
-from pytest import raises, warns, mark
-from sqlalchemy import asc, desc, Column, Integer, String, column
+from pytest import mark, raises, warns
+from sqlalchemy import Column, Integer, String, asc, column, desc
 from sqlalchemy.sql.expression import nullslast
+from sqlalchemy.sql.operators import asc_op, desc_op
 
-from sqlakeyset import Paging, Page
-from sqlakeyset import serialize_bookmark
-from sqlakeyset.columns import OC, DerivedColumn
+from sqlakeyset import Page, Paging, serialize_bookmark
+from sqlakeyset.columns import (OC, DerivedColumn,
+                                _get_order_direction,
+                                _remove_order_direction,
+                                _reverse_order_direction)
 
 
 @mark.filterwarnings("ignore:.*NULLS FIRST.*")
@@ -33,6 +36,27 @@ def test_oc():
     assert n.name == 'a'
     assert n.quoted_full_name == 'a'
     assert repr(n) == '<OC: a DESC NULLS LAST>'
+
+
+def test_order_manipulation():
+    is_asc = lambda c: _get_order_direction(c) == asc_op
+    flip = _reverse_order_direction
+    scrub = _remove_order_direction
+    base = column('a')
+    l = base.label('test')
+    a = asc(base)
+    d = desc(base)
+    assert is_asc(a)
+    assert not is_asc(d)
+    for lhs, rhs in [
+        (scrub(a), base),
+        (scrub(d), base),
+        (scrub(asc(l)), scrub(a.label('test'))),
+        (flip(a), d),
+        (flip(d), a),
+    ]:
+        assert str(lhs) == str(rhs)
+
 
 
 def test_okeys():

@@ -5,7 +5,6 @@ from copy import copy
 
 import sqlalchemy
 from sqlalchemy import asc, column
-from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import Bundle, Mapper, class_mapper
 from sqlalchemy.sql.expression import Label, ClauseList
 from sqlalchemy.sql.elements import _label_reference
@@ -211,6 +210,10 @@ class MappedOrderColumn:
         add to its query in order to retrieve its value at each row. If no
         extra data is required, the value of this property will be ``None``."""
 
+    def get_from_row(self, internal_row):
+        """Extract the value of this ordering column from a result row."""
+        raise NotImplementedError
+
     @property
     def ob_clause(self):
         """The original ORDER BY (sub)clause underlying this column."""
@@ -224,6 +227,9 @@ class MappedOrderColumn:
         c.oc = c.oc.reversed
         return c
 
+    def __str__(self):
+        return str(self.oc)
+
 
 class DerivedColumn(MappedOrderColumn):
     """An ordering key that can be derived from the original query results."""
@@ -233,6 +239,15 @@ class DerivedColumn(MappedOrderColumn):
 
     def get_from_row(self, internal_row):
         return self.getter(internal_row)
+
+    def __repr__(self):
+        return "Derived{}".format(repr(self.oc))
+
+
+def SimpleDerivedColumn(index, oc, getter):
+    """Convenience wrapper - an ordering column that can be derived from a single
+    column of the original query results."""
+    return DerivedColumn(oc, lambda row: getter(row[index]))
 
 
 class AppendedColumn(MappedOrderColumn):
@@ -252,13 +267,11 @@ class AppendedColumn(MappedOrderColumn):
 
     @property
     def ob_clause(self):
-        return self.extra_entity
+        col = self.extra_entity
+        return col if self.oc.is_ascending else col.desc()
 
-def ColumnDerivedColumn(colname, oc, getter):
-    """Convenience wrapper - an ordering column that can be derived from a single
-    column of the original query results."""
-    return DerivedColumn(oc, lambda row: getter(getattr(row, colname)))
-
+    def __repr__(self):
+        return "Appended{}".format(repr(self.oc))
 
 def find_order_key(ocol, column_descriptions):
     """Return a :class:`MappedOrderColumn` describing how to populate the
@@ -270,16 +283,16 @@ def find_order_key(ocol, column_descriptions):
         derive the value of ``ocol``.
     :returns: A :class:`MappedOrderColumn` wrapping ``ocol``.
 """
-    for desc in column_descriptions:
-        name = desc['name']
+    IDENTITY = lambda c: c
+    for index, desc in enumerate(column_descriptions):
         entity = desc['entity']
         expr = desc['expr']
 
         if isinstance(expr, Bundle):
             for prop, col in expr.columns.items():
                 if strip_labels(col) == ocol.comparable_value:
-                    return ColumnDerivedColumn(name, ocol,
-                                            lambda c: getattr(c, prop))
+                    return SimpleDerivedColumn(index, ocol,
+                                               lambda c: getattr(c, prop))
 
         try:
             is_a_table = bool(entity == expr)
@@ -293,8 +306,8 @@ def find_order_key(ocol, column_descriptions):
             mapper = class_mapper(desc['type'])
             try:
                 prop = mapper.get_property_by_column(ocol.element)
-                return ColumnDerivedColumn(name, ocol,
-                                        lambda c: getattr(c, prop.key))
+                return SimpleDerivedColumn(index, ocol,
+                                           lambda c: getattr(c, prop.key))
             except sqlalchemy.orm.exc.UnmappedColumnError:
                 pass
 
@@ -303,13 +316,13 @@ def find_order_key(ocol, column_descriptions):
             mapper = expr.parent
             tname = mapper.local_table.description
             if ocol.table_name == tname and ocol.name == expr.name:
-                return ColumnDerivedColumn(name, ocol, lambda c: c)
+                return SimpleDerivedColumn(index, ocol, IDENTITY)
 
         # is an attribute with label
         try:
             if ocol.quoted_full_name == OC(expr).full_name:
-                return ColumnDerivedColumn(name, ocol, lambda c: c)
-        except ArgumentError:
+                return SimpleDerivedColumn(index, ocol, IDENTITY)
+        except sqlalchemy.exc.ArgumentError:
             pass
 
     # Couldn't find an existing column in the query from which we can

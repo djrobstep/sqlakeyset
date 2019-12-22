@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select, String, Column, Integer, ForeignKey, column, table, desc, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, aliased, joinedload, column_property, Bundle
+from sqlalchemy.orm import relationship, aliased, column_property, Bundle
 from sqlbag import temporary_database, S
 
 from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark

@@ -134,6 +134,8 @@ def orm_get_page(q, per_page, place, backwards):
         else:
             q = q.filter(condition)
 
+    q = q.limit(per_page + 1) # 1 extra to check if there's a further page
+
     rows = q.all()
 
     page = orm_page_from_rows(
