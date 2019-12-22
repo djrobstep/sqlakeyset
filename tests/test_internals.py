@@ -2,9 +2,9 @@ from pytest import raises, warns, mark
 from sqlalchemy import asc, desc, Column, Integer, String, column
 from sqlalchemy.sql.expression import nullslast
 
-from sqlakeyset import OC, Paging, Page
+from sqlakeyset import Paging, Page
 from sqlakeyset import serialize_bookmark
-from sqlakeyset.columns import DerivedKey
+from sqlakeyset.columns import OC, DerivedColumn
 
 
 @mark.filterwarnings("ignore:.*NULLS FIRST.*")
@@ -36,8 +36,8 @@ def test_oc():
 
 
 def test_okeys():
-    a = DerivedKey(OC(asc('a')), lambda x:x)
-    b = DerivedKey(OC(desc('b')), lambda x:x)
+    a = DerivedColumn(OC(asc('a')), lambda x:x)
+    b = DerivedColumn(OC(desc('b')), lambda x:x)
     assert a.oc.is_ascending
     assert not b.oc.is_ascending
 

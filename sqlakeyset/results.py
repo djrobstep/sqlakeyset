@@ -15,32 +15,50 @@ SERIALIZER_SETTINGS = dict(
 s = Serial(**SERIALIZER_SETTINGS)
 
 
-def serialize_bookmark(x):
-    """Serialize a place marker to a bookmark string."""
-    x, backwards = x
+def serialize_bookmark(marker):
+    """Serialize a place marker to a bookmark string.
+
+    :param marker: A pair ``(keyset, backwards)``, where ``keyset`` is a tuple
+        containing values of the ordering columns, and `backwards` denotes the
+        paging direction.
+    :returns: A CSV-like string using ``~`` as a separator."""
+    x, backwards = marker
     ss = s.serialize_values(x)
     direction = '<' if backwards else '>'
     return direction + ss
 
 
-def unserialize_bookmark(x):
-    """Deserialize a bookmark string to a place marker."""
-    if not x:
+def unserialize_bookmark(bookmark):
+    """Deserialize a bookmark string to a place marker.
+
+    :param bookmark: A string in the format produced by
+        :func:`serialize_bookmark`.
+    :returns: A marker pair as described in :func:`serialize_bookmark`.
+    """
+    if not bookmark:
         return None, False
 
-    direction = x[0]
+    direction = bookmark[0]
 
     if direction not in ('>', '<'):
         raise ValueError
 
     backwards = direction == '<'
-    cells = s.unserialize_values(x[1:])
+    cells = s.unserialize_values(bookmark[1:])
     return cells, backwards
 
 
 class Page(list):
     """A :class:`list` of result rows with access to paging information and
     some convenience methods."""
+
+    def __init__(self, iterable, paging=None, keys=None):
+        super().__init__(iterable)
+        self.paging = paging
+        """The :class:`Paging` information describing how this page relates to the
+       whole resultset."""
+        self._keys = keys
+
     def scalar(self):
         """Assuming paging was called with ``per_page=1`` and a single-column
         query, return the single value."""
@@ -57,6 +75,11 @@ class Page(list):
             raise RuntimeError('too many rows returned')
         else:
             return self[0]
+
+    def keys(self):
+        """Equivalent of :meth:`sqlalchemy.engine.ResultProxy.keys`: returns
+        the list of string keys for rows."""
+        return self._keys
 
 
 class Paging:
@@ -146,7 +169,7 @@ class Paging:
 
     @property
     def current(self):
-        """Marker for the current page in the current direction."""
+        """Marker for the current page in the current paging direction."""
         if self.backwards:
             return self.current_backwards
         else:
@@ -155,7 +178,7 @@ class Paging:
     @property
     def current_opposite(self):
         """Marker for the current page in the opposite of the current
-        direction."""
+        paging direction."""
         if self.backwards:
             return self.current_forwards
         else:
@@ -163,8 +186,7 @@ class Paging:
 
     @property
     def further(self):
-        """Marker for the following page in the paging direction (as modified
-        by ``backwards``)."""
+        """Marker for the following page in the current paging direction."""
         if self.backwards:
             return self.previous
         else:
@@ -173,7 +195,7 @@ class Paging:
     @property
     def has_further(self):
         """Boolean flagging whether there are more rows before this page in the
-        paging direction (as modified by ``backwards``)."""
+        current paging direction."""
         if self.backwards:
             return self.has_previous
         else:

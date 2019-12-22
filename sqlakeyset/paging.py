@@ -1,5 +1,5 @@
 """Main paging interface and implementation."""
-from sqlalchemy import func, select
+from sqlalchemy import func
 from sqlalchemy.util import lightweight_named_tuple
 
 from .columns import parse_clause, find_order_key
@@ -12,7 +12,7 @@ def result_row_type(query):
     query; or the identity function for queries that return a single entity.
 
     :param query: The query to inspect.
-    :type query: :class:`sqlalchemy.orm.Query`.
+    :type query: :class:`sqlalchemy.orm.query.Query`.
     :returns: either a named tuple type or the identity."""
 
     if query.is_single_entity:
@@ -47,10 +47,12 @@ def orm_page_from_rows(
         mapped_ocols,
         extra_entities,
         result_type,
+        keys,
         backwards=False,
         current_marker=None):
     """Turn a raw page of results for an ORM query (as obtained by
-    :func:`orm_get_page`) into a :class:`Page` for external consumers."""
+    :func:`orm_get_page`) into a :class:`.results.Page` for external
+    consumers."""
 
     # orm_get_page might have added some extra columns to the query in order
     # to get the keys for the bookmark. Here, we split the rows back to the
@@ -66,8 +68,7 @@ def orm_page_from_rows(
     paging = Paging(out_rows, page_size, ocols, backwards,
                     current_marker, get_marker=None, markers=key_rows)
 
-    page = Page(paging.rows)
-    page.paging = paging
+    page = Page(paging.rows, paging, keys=keys)
     return page
 
 
@@ -86,18 +87,26 @@ def core_page_from_rows(
         current_marker=None,
         keys=None):
     """Turn a raw page of results for an SQLAlchemy Core query (as obtained by
-    :func:`core_get_page`) into a :class:`Page` for external consumers."""
+    :func:`.core_get_page`) into a :class:`.Page` for external consumers."""
     paging = Paging(rows, page_size, ocols, backwards, current_marker, core_placemarker_from_row)
 
-    page = Page(paging.rows)
-    page.paging = paging
-    page._keys = keys
+    page = Page(paging.rows, paging, keys=keys)
     return page
 
 
 def orm_get_page(q, per_page, place, backwards):
+    """Get a page from an SQLAlchemy ORM query.
+
+    :param q: The :class:`sqlalchemy.orm.query.Query` to paginate
+    :param per_page: Number of rows per page.
+    :param place: Keyset representing the place after which to start the page.
+    :param backwards: If ``True``, reverse pagination direction.
+    :returns: :class:`Page`
+    """
+
     ob_clause = q.selectable._order_by_clause
     result_type = result_row_type(q)
+    keys = [e._label_name for e in q._entities]
     column_descriptions = q.column_descriptions
 
     order_cols = parse_clause(ob_clause)
@@ -110,7 +119,7 @@ def orm_get_page(q, per_page, place, backwards):
     q = q.order_by(False).order_by(*clauses).only_return_tuples(True)
 
     extra_entities = [col.extra_entity for col in mapped_ocols
-                      if k.extra_entity is not None]
+                      if col.extra_entity is not None]
     if extra_entities:
         existing_entities = (e.expr for e in q._entities)
         q = q.with_entities(*existing_entities, *extra_entities)
@@ -134,6 +143,7 @@ def orm_get_page(q, per_page, place, backwards):
         mapped_ocols,
         extra_entities,
         result_type,
+        keys,
         backwards,
         current_marker=place)
 
@@ -141,6 +151,16 @@ def orm_get_page(q, per_page, place, backwards):
 
 
 def core_get_page(s, selectable, per_page, place, backwards):
+    """Get a page from an SQLAlchemy Core selectable.
+
+    :param s: :class:`sqlalchemy.engine.Connection` or
+        :class:`sqlalchemy.orm.session.Session` to use to execute the query.
+    :param selectable: The source selectable.
+    :param per_page: Number of rows per page.
+    :param place: Keyset representing the place after which to start the page.
+    :param backwards: If ``True``, reverse pagination direction.
+    :returns: :class:`Page`
+    """
     order_cols = parse_clause(selectable._order_by_clause)
 
     if backwards:
@@ -221,7 +241,7 @@ def select_page(
     """Get a page of results from a SQLAlchemy Core selectable.
 
     Specify no more than one of the arguments ``page``, ``after`` or
-    ``before``. If none is provided, the first page is returned.
+    ``before``. If none of these are provided, the first page is returned.
 
     :param s: :class:`sqlalchemy.engine.Connection` or
         :class:`sqlalchemy.orm.session.Session` to use to execute the query.
@@ -234,6 +254,9 @@ def select_page(
         following the specified keyset.
     :param before: if provided, the page will consist of the rows immediately
         preceding the specified keyset.
+
+    :returns: A :class:`Page` containing the requested rows and paging hooks
+        to access surrounding pages.
     """
     place, backwards = process_args(after, before, page)
 
@@ -253,10 +276,10 @@ def get_page(
     """Get a page of results for an ORM query.
 
     Specify no more than one of the arguments ``page``, ``after`` or
-    ``before``. If none is provided, the first page is returned.
+    ``before``. If none of these are provided, the first page is returned.
 
     :param query: The source query.
-    :type query: :class:`sqlalchemy.orm.Query`.
+    :type query: :class:`sqlalchemy.orm.query.Query`.
     :param per_page: The (maximum) number of rows on the page.
     :type per_page: int, optional.
     :param page: a ``(keyset, backwards)`` pair or string bookmark describing 
@@ -265,6 +288,9 @@ def get_page(
         following the specified keyset.
     :param before: if provided, the page will consist of the rows immediately
         preceding the specified keyset.
+
+    :returns: A :class:`Page` containing the requested rows and paging hooks
+        to access surrounding pages.
     """
     place, backwards = process_args(after, before, page)
 

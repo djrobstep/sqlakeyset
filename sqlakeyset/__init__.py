@@ -1,5 +1,4 @@
-from .columns import OC
-from .paging import get_page, select_page, process_args
+from .paging import get_page, select_page
 from .results import serialize_bookmark, unserialize_bookmark, Page, Paging
 
 __all__ = [

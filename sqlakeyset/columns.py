@@ -1,4 +1,5 @@
-"""The OC class and supporting functions to manipulate ordering columns."""
+"""Classes and supporting functions to manipulate ordering columns and extract
+keyset markers from query results."""
 from warnings import warn
 from copy import copy
 
@@ -24,7 +25,6 @@ def parse_clause(clause):
     def _flatten(cl):
         if isinstance(cl, ClauseList):
             for subclause in cl.clauses:
-                # TODO: could use "yield from" here if we require python>=3.3
                 for x in _flatten(subclause):
                     yield x
         else:
@@ -42,8 +42,9 @@ def _warn_if_nullable(x):
         pass
 
 class OC:
-    """Wrapper class for ordering columns; i.e. ColumnElements appearing in
-    the ORDER BY clause of a query we are paging."""
+    """Wrapper class for ordering columns; i.e.  instances of
+    :class:`sqlalchemy.sql.expression.ColumnElement` appearing in the ORDER BY
+    clause of a query we are paging."""
     def __init__(self, x):
         if isinstance(x, str):
             x = column(x)
@@ -73,7 +74,7 @@ class OC:
     @property
     def comparable_value(self):
         """The ordering column/SQL expression in a form that is suitable for
-        incorporating in a ROW(...)>ROW(...) comparision; i.e. with ordering
+        incorporating in a ``ROW(...) > ROW(...)`` comparision; i.e. with ordering
         modifiers and labels removed."""
         return strip_labels(self.element)
 
@@ -101,7 +102,8 @@ class OC:
         return '<OC: {}>'.format(str(self))
 
 def strip_labels(el):
-    """Remove labels from a ColumnElement."""
+    """Remove labels from a
+    :class:`sqlalchemy.sql.expression.ColumnElement`."""
     while isinstance(el, _LABELLED):
         try:
             el = el.element
@@ -112,8 +114,8 @@ def strip_labels(el):
 
 def _get_order_direction(x):
     """
-    Given a ColumnElement, find and return its ordering direction
-    (ASC or DESC) if it has one.
+    Given a :class:`sqlalchemy.sql.expression.ColumnElement`, find and return
+    its ordering direction (ASC or DESC) if it has one.
 
     :param x: a :class:`sqlalchemy.sql.expression.ColumnElement`
     :return: `asc_op`, `desc_op` or `None`
@@ -132,8 +134,8 @@ def _get_order_direction(x):
 
 def _reverse_order_direction(ce):
     """
-    Given a ColumnElement, return a copy with its ordering direction
-    (ASC or DESC) reversed (if it has one).
+    Given a :class:`sqlalchemy.sql.expression.ColumnElement`, return a copy
+    with its ordering direction (ASC or DESC) reversed (if it has one).
 
     :param ce: a :class:`sqlalchemy.sql.expression.ColumnElement`
     """
@@ -158,8 +160,9 @@ def _reverse_order_direction(ce):
 
 def _remove_order_direction(ce):
     """
-    Given a ColumnElement, return a copy with its ordering modifiers
-    (ASC/DESC, NULLS FIRST/LAST) removed (if it has any).
+    Given a :class:`sqlalchemy.sql.expression.ColumnElement`, return a copy
+    with its ordering modifiers (ASC/DESC, NULLS FIRST/LAST) removed (if it has
+    any).
 
     :param ce: a :class:`sqlalchemy.sql.expression.ColumnElement`
     """
@@ -196,27 +199,33 @@ def _remove_order_direction(ce):
 class MappedOrderColumn:
     """An ordering column in the context of a particular query/select.
 
-    This wraps an OC with one extra piece of information: how to retrieve the
-    value of the ordering key from a result row. For some queries, this
-    requires adding extra entities to the query; in this case,
+    This wraps an :class:`OC` with one extra piece of information: how to
+    retrieve the value of the ordering key from a result row. For some queries,
+    this requires adding extra entities to the query; in this case,
     ``extra_entity`` will be set."""
 
-    extra_entity = None
     def __init__(self, oc):
         self.oc = oc
+        self.extra_entity = None
+        """An extra SQLAlchemy ORM entity that this ordering column needs to
+        add to its query in order to retrieve its value at each row. If no
+        extra data is required, the value of this property will be ``None``."""
 
     @property
     def ob_clause(self):
+        """The original ORDER BY (sub)clause underlying this column."""
         return self.oc.uo
 
     @property
     def reversed(self):
+        """A :class:`MappedOrderColumn` representing the same column in the
+        reversed order."""
         c = copy(self)
         c.oc = c.oc.reversed
         return c
 
 
-class DerivedKey(MappedOrderColumn):
+class DerivedColumn(MappedOrderColumn):
     """An ordering key that can be derived from the original query results."""
     def __init__(self, oc, getter):
         super().__init__(oc)
@@ -226,15 +235,15 @@ class DerivedKey(MappedOrderColumn):
         return self.getter(internal_row)
 
 
-class AppendedKey(MappedOrderColumn):
+class AppendedColumn(MappedOrderColumn):
     """An ordering key that requires an additional column to be added to the
     original query."""
     _counter = 0
     def __init__(self, oc, name=None):
         super().__init__(oc)
         if not name:
-            AppendedKey._counter += 1
-            name = "_sqlakeyset_oc_{}".format(AppendedKey._counter)
+            AppendedColumn._counter += 1
+            name = "_sqlakeyset_oc_{}".format(AppendedColumn._counter)
         self.name = name
         self.extra_entity = self.oc.comparable_value.label(self.name)
 
@@ -245,10 +254,10 @@ class AppendedKey(MappedOrderColumn):
     def ob_clause(self):
         return self.extra_entity
 
-def ColumnDerivedKey(colname, oc, getter):
-    """Convenience wrapper - an ordering key that can be derived from a single
+def ColumnDerivedColumn(colname, oc, getter):
+    """Convenience wrapper - an ordering column that can be derived from a single
     column of the original query results."""
-    return DerivedKey(oc, lambda row: getter(getattr(row, colname)))
+    return DerivedColumn(oc, lambda row: getter(getattr(row, colname)))
 
 
 def find_order_key(ocol, column_descriptions):
@@ -269,7 +278,7 @@ def find_order_key(ocol, column_descriptions):
         if isinstance(expr, Bundle):
             for prop, col in expr.columns.items():
                 if strip_labels(col) == ocol.comparable_value:
-                    return ColumnDerivedKey(name, ocol,
+                    return ColumnDerivedColumn(name, ocol,
                                             lambda c: getattr(c, prop))
 
         try:
@@ -284,7 +293,7 @@ def find_order_key(ocol, column_descriptions):
             mapper = class_mapper(desc['type'])
             try:
                 prop = mapper.get_property_by_column(ocol.element)
-                return ColumnDerivedKey(name, ocol,
+                return ColumnDerivedColumn(name, ocol,
                                         lambda c: getattr(c, prop.key))
             except sqlalchemy.orm.exc.UnmappedColumnError:
                 pass
@@ -294,16 +303,15 @@ def find_order_key(ocol, column_descriptions):
             mapper = expr.parent
             tname = mapper.local_table.description
             if ocol.table_name == tname and ocol.name == expr.name:
-                return ColumnDerivedKey(name, ocol, lambda c: c)
+                return ColumnDerivedColumn(name, ocol, lambda c: c)
 
         # is an attribute with label
         try:
             if ocol.quoted_full_name == OC(expr).full_name:
-                return ColumnDerivedKey(name, ocol, lambda c: c)
+                return ColumnDerivedColumn(name, ocol, lambda c: c)
         except ArgumentError:
             pass
 
     # Couldn't find an existing column in the query from which we can
     # determine this ordering column; so we need to add one.
-    return AppendedKey(ocol)
-
+    return AppendedColumn(ocol)
