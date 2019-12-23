@@ -2,6 +2,7 @@
 from copy import copy
 
 from sqlalchemy import func
+from sqlalchemy.engine.result import RowProxy as _RowProxy
 from sqlalchemy.orm.query import Query
 from sqlalchemy.util import lightweight_named_tuple
 
@@ -162,6 +163,11 @@ def core_get_page(s, selectable, per_page, place, backwards):
     :param backwards: If ``True``, reverse pagination direction.
     :returns: :class:`Page`
     """
+    # We need the result schema for the *original* query in order to properly
+    # trim off our extra_entities. As far as I can tell, this is the only
+    # way to get it. LIMIT 0 to minimize database load (though the fact that a
+    # round trip to the DB has to happen at all is regrettable).
+    result_proxy = s.execute(selectable.limit(0))
     paging_result = perform_paging(q=selectable,
                                    per_page=per_page,
                                    place=place,
@@ -169,6 +175,7 @@ def core_get_page(s, selectable, per_page, place, backwards):
                                    orm=False,
                                    s=s)
     page = core_page_from_rows(paging_result,
+                               result_proxy,
                                per_page,
                                backwards,
                                current_marker=place)
@@ -177,6 +184,7 @@ def core_get_page(s, selectable, per_page, place, backwards):
 
 def core_page_from_rows(
         paging_result,
+        result_proxy,
         page_size,
         backwards=False,
         current_marker=None):
@@ -185,23 +193,14 @@ def core_page_from_rows(
     ocols, mapped_ocols, extra_columns, rows, keys = paging_result
 
     def clean_row(row):
-        # SA Core RowProxy objects are constructed separately for each row,
-        # rather than having a special type constructed for the query as in the
-        # ORM case.  We need to trim off the extra entities.
-        # Attributes:
-        #     _parent is a reference to parent resultproxy metadata 
-        #         (yikes, we can't really replace this cleanly... can we?)
-        #     _row is a raw list
-        #     _processors is a list correlated with _row
-        #     _keymap is a map from column keys to (processor, obj, index)
-        #         where index is an index into _row
+        """Trim off the extra columns and return as a correct RowProxy."""
         N = len(row._row) - len(extra_columns)
-        row = copy(row)
-        row._row = row._row[:N]
-        row._processors = row._processors[:N]
-        row._keymap = {k: v for k, v in row._keymap.items()
-                       if v[2] < N}
-        return row
+        row = row[:N]
+        process_row = result_proxy._process_row
+        metadata = result_proxy._metadata
+        keymap = metadata._keymap
+        processors = metadata._processors
+        return process_row(metadata, row, processors, keymap)
 
     out_rows = [clean_row(row) for row in rows]
     key_rows = [tuple(col.get_from_row(row) for col in mapped_ocols)
