@@ -193,7 +193,10 @@ def core_page_from_rows(
     ocols, mapped_ocols, extra_columns, rows, keys = paging_result
 
     def clean_row(row):
-        """Trim off the extra columns and return as a correct RowProxy."""
+        """Trim off the extra columns and return as a correct-as-possible
+        RowProxy."""
+        if not extra_columns:
+            return row
         N = len(row._row) - len(extra_columns)
         row = row[:N]
         process_row = result_proxy._process_row
