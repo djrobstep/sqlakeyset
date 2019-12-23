@@ -97,37 +97,36 @@ class Paging:
             get_marker=None,
             markers=None):
 
+        self.original_rows = rows
+
         if get_marker:
-            marker = lambda i: get_marker(rows[i], ocols)
+            marker = lambda i: get_marker(self.original_rows[i], ocols)
         else:
             if rows and not markers:
                 raise ValueError
             marker = markers.__getitem__
 
-        self.original_rows = rows
-
         self.per_page = per_page
         self.backwards = backwards
 
         excess = rows[per_page:]
+        rows = rows[:per_page]
+        self.rows = rows
         self.marker_0 = current_marker
 
         if rows:
             self.marker_1 = marker(0)
-            self.marker_n = marker(min(per_page, len(rows)) - 1)
+            self.marker_n = marker(len(rows) - 1)
         else:
             self.marker_1 = None
             self.marker_n = None
 
         if excess:
-            self.marker_nplus1 = marker(per_page)
+            self.marker_nplus1 = marker(len(rows))
         else:
             self.marker_nplus1 = None
 
         four = [self.marker_0, self.marker_1, self.marker_n, self.marker_nplus1]
-
-        rows = rows[:per_page]
-        self.rows = rows
 
         if backwards:
             self.rows.reverse()

@@ -4,7 +4,7 @@ from sqlalchemy.sql.expression import nullslast
 from sqlalchemy.sql.operators import asc_op, desc_op
 
 from sqlakeyset import Page, Paging, serialize_bookmark
-from sqlakeyset.columns import (OC, DerivedColumn,
+from sqlakeyset.columns import (OC, AppendedColumn, DirectColumn,
                                 _get_order_direction,
                                 _remove_order_direction,
                                 _reverse_order_direction)
@@ -48,20 +48,20 @@ def test_order_manipulation():
     d = desc(base)
     assert is_asc(a)
     assert not is_asc(d)
-    for lhs, rhs in [
+    equal_pairs = [
         (scrub(a), base),
         (scrub(d), base),
         (scrub(asc(l)), scrub(a.label('test'))),
         (flip(a), d),
         (flip(d), a),
-    ]:
+    ]
+    for lhs, rhs in equal_pairs:
         assert str(lhs) == str(rhs)
 
 
-
-def test_okeys():
-    a = DerivedColumn(OC(asc('a')), lambda x:x)
-    b = DerivedColumn(OC(desc('b')), lambda x:x)
+def test_mappedocols():
+    a = AppendedColumn(OC(asc('a')))
+    b = DirectColumn(OC(desc('b')), 0)
     assert a.oc.is_ascending
     assert not b.oc.is_ascending
 

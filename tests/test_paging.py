@@ -260,7 +260,14 @@ def test_orm_query4(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_hybrid_property(dburl):
+def test_orm_implicit_join(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Author.name, Book.id) \
+            .filter(Book.author_id == Author.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_hybrid_property(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.score, Book.id)
         check_paging_orm(q=q)
@@ -268,7 +275,7 @@ def test_orm_query_hybrid_property(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_column_property(dburl):
+def test_orm_column_property(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.popularity, Book.id)
         check_paging_orm(q=q)
@@ -276,13 +283,13 @@ def test_orm_query_column_property(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_correlated_subquery_hybrid(dburl):
+def test_orm_correlated_subquery_hybrid(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Author.id, Author.name).order_by(Author.book_count, Author.id)
         check_paging_orm(q=q)
 
 
-def test_orm_query_expression(dburl):
+def test_orm_expression(dburl):
     with S(dburl, echo=ECHO) as s:
         key = func.coalesce(Book.a,0) + Book.b
         q = s.query(Book).order_by(key, Book.id)
@@ -292,7 +299,7 @@ def test_orm_query_expression(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_aggregated(dburl):
+def test_orm_aggregated(dburl):
     count = func.count().label('count')
     spec = [desc(count), desc(Author.name), Author.id]
 
@@ -302,7 +309,7 @@ def test_orm_query_aggregated(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_with_entities(dburl):
+def test_orm_with_entities(dburl):
     spec = [Author.name, Book.name, desc(Book.id)]
 
     with S(dburl, echo=ECHO) as s:
@@ -314,7 +321,7 @@ def test_orm_query_with_entities(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_subquery(dburl):
+def test_orm_subquery(dburl):
     count = func.count().label('count')
 
     with S(dburl, echo=ECHO) as s:
@@ -326,7 +333,7 @@ def test_orm_query_subquery(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_recursive_cte(pg_only_dburl):
+def test_orm_recursive_cte(pg_only_dburl):
     with S(pg_only_dburl, echo=ECHO) as s:
         # Start with "origins": books that don't have prequels
         seed = s.query(Book.id.label('id'), Book.id.label('origin')) \
@@ -368,7 +375,7 @@ def test_orm_order_by_bundle(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_joined_inheritance(joined_inheritance_dburl):
+def test_orm_joined_inheritance(joined_inheritance_dburl):
     with S(joined_inheritance_dburl, echo=ECHO) as s:
         q=s.query(Animal).order_by(Animal.leg_count, Animal.id)
         check_paging_orm(q=q)
@@ -399,6 +406,28 @@ def test_core(dburl):
 
     with S(dburl, echo=ECHO) as s:
         check_paging_core(selectable=selectable, s=s)
+
+
+def test_core2(dburl):
+    with S(dburl, echo=ECHO) as s:
+        sel = select([Book.score]).order_by(Book.id)
+        check_paging_core(sel, s)
+
+        sel = select([Book.score]) \
+            .order_by(Author.id - Book.id, Book.id) \
+            .where(Author.id == Book.author_id)
+        check_paging_core(sel, s)
+
+        sel = select([Book.author_id, func.count()]) \
+            .group_by(Book.author_id) \
+            .order_by(func.sum(Book.popularity))
+        check_paging_core(sel, s)
+
+        v = func.sum(func.coalesce(Book.a, 0)) + func.min(Book.b)
+        sel = select([Book.author_id, func.count(), v]) \
+            .group_by(Book.author_id) \
+            .order_by(v)
+        check_paging_core(sel, s)
 
 
 def test_args():

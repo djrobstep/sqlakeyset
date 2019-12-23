@@ -1,14 +1,15 @@
 """Classes and supporting functions to manipulate ordering columns and extract
 keyset markers from query results."""
-from warnings import warn
 from copy import copy
+from warnings import warn
 
 import sqlalchemy
 from sqlalchemy import asc, column
 from sqlalchemy.orm import Bundle, Mapper, class_mapper
-from sqlalchemy.sql.expression import Label, ClauseList
 from sqlalchemy.sql.elements import _label_reference
-from sqlalchemy.sql.operators import asc_op, desc_op, nullsfirst_op, nullslast_op
+from sqlalchemy.sql.expression import ClauseList, ColumnElement, Label
+from sqlalchemy.sql.operators import (asc_op, desc_op, nullsfirst_op,
+                                      nullslast_op)
 
 _LABELLED = (Label, _label_reference)
 _ORDER_MODIFIERS = (asc_op, desc_op, nullsfirst_op, nullslast_op)
@@ -231,23 +232,33 @@ class MappedOrderColumn:
         return str(self.oc)
 
 
-class DerivedColumn(MappedOrderColumn):
-    """An ordering key that can be derived from the original query results."""
-    def __init__(self, oc, getter):
+class DirectColumn(MappedOrderColumn):
+    """An ordering key that was directly included as a column in the original
+    query."""
+    def __init__(self, oc, index):
         super().__init__(oc)
-        self.getter = getter
+        self.index = index
 
-    def get_from_row(self, internal_row):
-        return self.getter(internal_row)
+    def get_from_row(self, row):
+        return row[self.index]
 
     def __repr__(self):
-        return "Derived{}".format(repr(self.oc))
+        return "Direct({}, {!r})".format(self.index, self.oc)
 
 
-def SimpleDerivedColumn(index, oc, getter):
-    """Convenience wrapper - an ordering column that can be derived from a single
-    column of the original query results."""
-    return DerivedColumn(oc, lambda row: getter(row[index]))
+class AttributeColumn(MappedOrderColumn):
+    """An ordering key that was included as a column attribute in the original
+    query."""
+    def __init__(self, oc, index, attr):
+        super().__init__(oc)
+        self.index = index
+        self.attr = attr
+
+    def get_from_row(self, row):
+        return getattr(row[self.index], self.attr)
+
+    def __repr__(self):
+        return "Attribute({}.{}, {!r})".format(self.index, self.attr, self.oc)
 
 
 class AppendedColumn(MappedOrderColumn):
@@ -262,8 +273,8 @@ class AppendedColumn(MappedOrderColumn):
         self.name = name
         self.extra_entity = self.oc.comparable_value.label(self.name)
 
-    def get_from_row(self, internal_row):
-        return getattr(internal_row, self.name)
+    def get_from_row(self, row):
+        return getattr(row, self.name)
 
     @property
     def ob_clause(self):
@@ -271,7 +282,60 @@ class AppendedColumn(MappedOrderColumn):
         return col if self.oc.is_ascending else col.desc()
 
     def __repr__(self):
-        return "Appended{}".format(repr(self.oc))
+        return "Appended({!r})".format(self.oc)
+
+def derive_order_key(ocol, desc, index):
+    """Attempt to derive the value of `ocol` from a query column.
+
+    :param ocol: The :class:`OC` to look up.
+    :param desc: Either a column description as in
+        :attr:`sqlalchemy.orm.query.Query.column_descriptions`, or a
+        :class:`sqlalchemy.sql.expression.ColumnElement`.
+
+    :returns: Either a :class:`MappedOrderColumn` or `None`."""
+    if isinstance(desc, ColumnElement):
+        if desc.compare(ocol.comparable_value):
+            return DirectColumn(ocol, index)
+        else:
+            return None
+
+    entity = desc['entity']
+    expr = desc['expr']
+
+    if isinstance(expr, Bundle):
+        for key, col in expr.columns.items():
+            if strip_labels(col) == ocol.comparable_value:
+                return AttributeColumn(ocol, index, key)
+
+    try:
+        is_a_table = bool(entity == expr)
+    except (sqlalchemy.exc.ArgumentError, TypeError):
+        is_a_table = False
+
+    if isinstance(expr, Mapper) and expr.class_ == entity:
+        is_a_table = True
+
+    if is_a_table:  # is a table
+        mapper = class_mapper(desc['type'])
+        try:
+            prop = mapper.get_property_by_column(ocol.element)
+            return AttributeColumn(ocol, index, prop.key)
+        except sqlalchemy.orm.exc.UnmappedColumnError:
+            pass
+
+    # is an attribute
+    if hasattr(expr, 'info'):
+        mapper = expr.parent
+        tname = mapper.local_table.description
+        if ocol.table_name == tname and ocol.name == expr.name:
+            return DirectColumn(ocol, index)
+
+    # is an attribute with label
+    try:
+        if ocol.quoted_full_name == OC(expr).full_name:
+            return DirectColumn(ocol, index)
+    except sqlalchemy.exc.ArgumentError:
+        pass
 
 def find_order_key(ocol, column_descriptions):
     """Return a :class:`MappedOrderColumn` describing how to populate the
@@ -280,50 +344,12 @@ def find_order_key(ocol, column_descriptions):
 
     :param ocol: The :class:`OC` to look up.
     :param column_descriptions: The list of columns from which to attempt to
-        derive the value of ``ocol``.
-    :returns: A :class:`MappedOrderColumn` wrapping ``ocol``.
-"""
-    IDENTITY = lambda c: c
+        derive the value of `ocol`.
+    :returns: A :class:`MappedOrderColumn` wrapping `ocol`."""
     for index, desc in enumerate(column_descriptions):
-        entity = desc['entity']
-        expr = desc['expr']
-
-        if isinstance(expr, Bundle):
-            for prop, col in expr.columns.items():
-                if strip_labels(col) == ocol.comparable_value:
-                    return SimpleDerivedColumn(index, ocol,
-                                               lambda c: getattr(c, prop))
-
-        try:
-            is_a_table = bool(entity == expr)
-        except (sqlalchemy.exc.ArgumentError, TypeError):
-            is_a_table = False
-
-        if isinstance(expr, Mapper) and expr.class_ == entity:
-            is_a_table = True
-
-        if is_a_table:  # is a table
-            mapper = class_mapper(desc['type'])
-            try:
-                prop = mapper.get_property_by_column(ocol.element)
-                return SimpleDerivedColumn(index, ocol,
-                                           lambda c: getattr(c, prop.key))
-            except sqlalchemy.orm.exc.UnmappedColumnError:
-                pass
-
-        # is an attribute
-        if hasattr(expr, 'info'):
-            mapper = expr.parent
-            tname = mapper.local_table.description
-            if ocol.table_name == tname and ocol.name == expr.name:
-                return SimpleDerivedColumn(index, ocol, IDENTITY)
-
-        # is an attribute with label
-        try:
-            if ocol.quoted_full_name == OC(expr).full_name:
-                return SimpleDerivedColumn(index, ocol, IDENTITY)
-        except sqlalchemy.exc.ArgumentError:
-            pass
+        ok = derive_order_key(ocol, desc, index)
+        if ok is not None:
+            return ok
 
     # Couldn't find an existing column in the query from which we can
     # determine this ordering column; so we need to add one.
