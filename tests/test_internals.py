@@ -1,10 +1,13 @@
 from pytest import mark, raises, warns
 from sqlalchemy import Column, Integer, String, asc, column, desc
+from sqlalchemy.orm import class_mapper
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import nullslast
 from sqlalchemy.sql.operators import asc_op, desc_op
 
 from sqlakeyset import Page, Paging, serialize_bookmark
-from sqlakeyset.columns import (OC, AppendedColumn, DirectColumn,
+from sqlakeyset.columns import (OC, derive_order_key,
+                                AppendedColumn, DirectColumn, AttributeColumn,
                                 _get_order_direction,
                                 _remove_order_direction,
                                 _reverse_order_direction)
@@ -64,6 +67,22 @@ def test_mappedocols():
     b = DirectColumn(OC(desc('b')), 0)
     assert a.oc.is_ascending
     assert not b.oc.is_ascending
+
+
+def test_flask_sqla_compat():
+    # test djrobstep#18 for regression
+    class T(declarative_base()):
+        __tablename__ = 't'
+        i = Column(Integer, primary_key=True)
+    desc = {
+        'name': 'T',
+        'type': T,
+        'aliased': False,
+        'expr': class_mapper(T),
+        'entity': T,
+    }
+    mapping = derive_order_key(OC(T.i), desc, 0)
+    assert isinstance(mapping, AttributeColumn)
 
 
 def general_asserts(p):
