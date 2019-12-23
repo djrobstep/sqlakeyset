@@ -67,6 +67,8 @@ def test_mappedocols():
     b = DirectColumn(OC(desc('b')), 0)
     assert a.oc.is_ascending
     assert not b.oc.is_ascending
+    assert b.reversed.oc.is_ascending
+    assert b.reversed.oc.is_ascending
 
 
 def test_flask_sqla_compat():

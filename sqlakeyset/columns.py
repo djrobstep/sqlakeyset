@@ -92,7 +92,7 @@ class OC:
         """An :class:`OC` representing the same column ordering, but reversed."""
         new_uo = _reverse_order_direction(self.uo)
         if new_uo is None:
-            raise ValueError
+            raise ValueError # pragma: no cover
         return OC(new_uo)
 
     def __str__(self):
@@ -108,7 +108,7 @@ def strip_labels(el):
         try:
             el = el.element
         except AttributeError:
-            raise ValueError
+            raise ValueError # pragma: no cover
     return el
 
 
@@ -129,7 +129,7 @@ def _get_order_direction(x):
         if el is None:
             return None
         x = el
-    raise Exception(_WRAPPING_OVERFLOW)
+    raise Exception(_WRAPPING_OVERFLOW) # pragma: no cover
 
 
 def _reverse_order_direction(ce):
@@ -155,7 +155,7 @@ def _reverse_order_direction(ce):
             # need to clone another level deeper.
             x._copy_internals()
             x = x.element
-    raise Exception(_WRAPPING_OVERFLOW)
+    raise Exception(_WRAPPING_OVERFLOW) # pragma: no cover
 
 
 def _remove_order_direction(ce):
@@ -193,7 +193,7 @@ def _remove_order_direction(ce):
             # need to clone another level deeper.
             x._copy_internals()
             x = x.element
-    raise Exception(_WRAPPING_OVERFLOW)
+    raise Exception(_WRAPPING_OVERFLOW) # pragma: no cover
 
 
 class MappedOrderColumn:
@@ -213,7 +213,7 @@ class MappedOrderColumn:
 
     def get_from_row(self, internal_row):
         """Extract the value of this ordering column from a result row."""
-        raise NotImplementedError
+        raise NotImplementedError # pragma: no cover
 
     @property
     def ob_clause(self):

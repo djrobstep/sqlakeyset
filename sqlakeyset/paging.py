@@ -213,7 +213,7 @@ def core_page_from_rows(
 
 def paging_condition(ordering_columns, place):
     if len(ordering_columns) != len(place):
-        raise ValueError('bad paging value')
+        raise ValueError('bad paging value') # pragma: no cover
 
     def swapped_if_descending(c, value):
         if not c.is_ascending:
