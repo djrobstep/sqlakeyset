@@ -304,7 +304,7 @@ def derive_order_key(ocol, desc, index):
 
     if isinstance(expr, Bundle):
         for key, col in expr.columns.items():
-            if strip_labels(col) == ocol.comparable_value:
+            if strip_labels(col).compare(ocol.comparable_value):
                 return AttributeColumn(ocol, index, key)
 
     try:
