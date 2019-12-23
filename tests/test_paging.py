@@ -246,6 +246,9 @@ def test_orm_query2(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.id, Book.name)
         check_paging_orm(q=q)
+        q = s.query(Book).only_return_tuples(True) \
+            .order_by(Book.id, Book.name)
+        check_paging_orm(q=q)
 
 
 def test_orm_query3(dburl):
