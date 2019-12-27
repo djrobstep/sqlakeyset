@@ -34,7 +34,7 @@ ECHO = False
 
 BOOK = "t_Book"
 
-custom_bookmark_type(arrow.Arrow, 'da', str, arrow.get)
+custom_bookmark_type(arrow.Arrow, 'da', deserializer=arrow.get)
 
 def randtime():
     return arrow.now() - timedelta(seconds=randrange(86400))
@@ -50,7 +50,7 @@ class Book(Base):
     author_id = Column(Integer, ForeignKey("author.id"))
     prequel_id = Column(Integer, ForeignKey(id), nullable=True)
     prequel = relationship("Book", remote_side=[id], backref="sequel", uselist=False)
-    published_at = Column(ArrowType, default=randtime)
+    published_at = Column(ArrowType, default=randtime, nullable=False)
 
     popularity = column_property(b + c * d)
 

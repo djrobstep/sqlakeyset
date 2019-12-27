@@ -6,9 +6,8 @@ import datetime
 import base64
 import uuid
 import dateutil.parser
-
-from .compat import csvreader, csvwriter, sio, text_type, binary_type, is_integer
-
+import csv
+from io import StringIO
 
 NONE = "x"
 TRUE = "true"
@@ -23,27 +22,59 @@ DATETIME = "dt"
 TIME = "t"
 UUID = "uuid"
 
+parsedate = lambda x: dateutil.parser.parse(x).date()
+binencode = lambda x: base64.b64encode(x).decode('utf-8')
+bindecode = lambda x: base64.b64decode(x.encode('utf-8'))
+
+TYPES = [
+    (str, 's'),
+    (int, 'i'),
+    (float, 'f'),
+    (bytes, 'b', bindecode, binencode),
+    (decimal.Decimal, 'n'),
+    (uuid.UUID, 'uuid'),
+    (datetime.datetime, 'dt', dateutil.parser.parse),
+    (datetime.date, 'd', parsedate),
+    (datetime.time, 't'),
+]
+
+BUILTINS = {
+    'x': None,
+    'true': True,
+    'false': False,
+}
+BUILTINS_INV = {v: k for k, v in BUILTINS.items()}
 
 class Serial(object):
     def __init__(self, *args, **kwargs):
         self.kwargs = kwargs
         self.custom_serializations = {}
         self.custom_unserializations = {}
+        for definition in TYPES:
+            self.register_type(*definition)
 
     def register_type(self, type, code,
-                      serializer, unserializer):
+                      deserializer=None, serializer=None):
+        if serializer is None:
+            serializer = str
+        if deserializer is None:
+            deserializer = type
+        if type in self.custom_serializations:
+            raise ValueError("Type {type} already has a serializer registered.")
+        if code in self.custom_unserializations:
+            raise ValueError("Type code {code} is already in use.")
         self.custom_serializations[type] = lambda x: (code, serializer(x))
-        self.custom_unserializations[code] = unserializer
+        self.custom_unserializations[code] = deserializer
 
     def split(self, joined):
-        s = sio(joined)
-        r = csvreader(s, **self.kwargs)
+        s = StringIO(joined)
+        r = csv.reader(s, **self.kwargs)
         row = next(r)
         return row
 
     def join(self, string_list):
-        s = sio()
-        w = csvwriter(s, **self.kwargs)
+        s = StringIO()
+        w = csv.writer(s, **self.kwargs)
         w.writerow(string_list)
         return s.getvalue()
 
@@ -59,42 +90,18 @@ class Serial(object):
         return [self.unserialize_value(_) for _ in self.split(s)]
 
     def serialize_value(self, x):
-        if x is None:
-            return NONE
-        elif x is True:
-            return TRUE
-        elif x is False:
-            return FALSE
+        try:
+            c, x = self.custom_serializations[type(x)](x)
+            return '{}:{}'.format(c, x)
+        except KeyError:
+            pass
 
-        t = type(x)
-
-        if t in self.custom_serializations:
-            c, x = self.custom_serializations[t](x)
-        elif t == text_type:
-            c = STRING
-        elif t == binary_type:
-            c = BINARY
-            x = base64.b64encode(x).decode("utf-8")
-        elif is_integer(x):
-            c = INTEGER
-        elif t == float:
-            c = FLOAT
-        elif t == decimal.Decimal:
-            c = DECIMAL
-        elif t == datetime.date:
-            c = DATE
-        elif t == datetime.datetime:
-            c = DATETIME
-        elif t == datetime.time:
-            c = TIME
-        elif t == uuid.UUID:
-            c = UUID
-        else:
+        try:
+            return BUILTINS_INV[x]
+        except KeyError:
             raise NotImplementedError(
                 "don't know how to serialize type of {} ({})".format(x, type(x))
             )
-
-        return "{}:{}".format(c, x)
 
     def unserialize_value(self, x):
         try:
@@ -103,32 +110,12 @@ class Serial(object):
             c = x
             v = None
 
-        if c in self.custom_unserializations:
+        try:
             return self.custom_unserializations[c](v)
-        elif c == NONE:
-            return None
-        elif c == TRUE:
-            return True
-        elif c == FALSE:
-            return False
-        elif c == STRING:
+        except KeyError:
             pass
-        elif c == BINARY:
-            v = base64.b64decode(v.encode("utf-8"))
-        elif c == INTEGER:
-            v = int(v)
-        elif c == FLOAT:
-            v = float(v)
-        elif c == DECIMAL:
-            v = decimal.Decimal(v)
-        elif c == DATE:
-            v = dateutil.parser.parse(v)
-            v = v.date()
-        elif c == DATETIME:
-            v = dateutil.parser.parse(v)
-        elif c == UUID:
-            v = uuid.UUID(v)
-        else:
-            raise ValueError("unrecognized value {}".format(x))
 
-        return v
+        try:
+            return BUILTINS[c]
+        except KeyError:
+            raise ValueError('unrecognized value {}'.format(x))
