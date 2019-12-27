@@ -25,6 +25,9 @@ flake8 = "*"
 isort = "*"
 pytz = "*"
 black = { version = ">=19.10b0", python=">=3.6" }
+sqlalchemy_utils = "*"
+arrow = "*"
+
 
 [tool.isort]
 multi_line_output = 3

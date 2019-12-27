@@ -1,4 +1,5 @@
 import warnings
+from random import randrange
 
 import pytest
 from sqlalchemy import (
@@ -17,7 +18,11 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship, aliased, column_property, Bundle
 from sqlbag import temporary_database, S
 
-from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark
+import arrow
+from sqlalchemy_utils import ArrowType
+from datetime import timedelta
+
+from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark, custom_bookmark_type
 from sqlakeyset.paging import process_args
 from sqlakeyset.columns import OC
 
@@ -29,6 +34,10 @@ ECHO = False
 
 BOOK = "t_Book"
 
+custom_bookmark_type(arrow.Arrow, 'da', str, arrow.get)
+
+def randtime():
+    return arrow.now() - timedelta(seconds=randrange(86400))
 
 class Book(Base):
     __tablename__ = BOOK
@@ -41,6 +50,7 @@ class Book(Base):
     author_id = Column(Integer, ForeignKey("author.id"))
     prequel_id = Column(Integer, ForeignKey(id), nullable=True)
     prequel = relationship("Book", remote_side=[id], backref="sequel", uselist=False)
+    published_at = Column(ArrowType, default=randtime)
 
     popularity = column_property(b + c * d)
 
@@ -295,6 +305,12 @@ def test_orm_query3(dburl):
 def test_orm_query4(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.name)
+        check_paging_orm(q=q)
+
+
+def test_orm_order_by_arrowtype(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.published_at, Book.id)
         check_paging_orm(q=q)
 
 

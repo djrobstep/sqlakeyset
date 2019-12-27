@@ -30,6 +30,11 @@ class Serial(object):
         self.custom_serializations = {}
         self.custom_unserializations = {}
 
+    def register_type(self, type, code,
+                      serializer, unserializer):
+        self.custom_serializations[type] = lambda x: (code, serializer(x))
+        self.custom_unserializations[code] = unserializer
+
     def split(self, joined):
         s = sio(joined)
         r = csvreader(s, **self.kwargs)
