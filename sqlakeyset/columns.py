@@ -103,6 +103,28 @@ class OC:
             raise ValueError  # pragma: no cover
         return OC(new_uo)
 
+    def pair_for_comparison(self, value, dialect):
+        """Return a pair of SQL expressions representing comparable values for
+        this ordering column and a specified value. 
+
+        :param value: A value to compare this column against.
+        :param dialect: The :class:`sqlalchemy.engine.interfaces.Dialect` in
+            use.
+        :returns: A pair `(a, b)` such that the comparison `a < b` is the
+            condition for the value of this OC being past `value` in the paging
+            order."""
+        compval = self.comparable_value
+        # If this OC is a column with a custom type, apply the custom
+        # preprocessing to the comparsion value:
+        try:
+            value = compval.type.process_bind_param(value, dialect)
+        except AttributeError:
+            pass
+        if self.is_ascending:
+            return compval, value
+        else:
+            return value, compval
+
     def __str__(self):
         return str(self.uo)
 

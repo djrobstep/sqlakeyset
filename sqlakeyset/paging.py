@@ -23,7 +23,7 @@ def orm_result_type(query):
     return lightweight_named_tuple("result", labels)
 
 
-def where_condition_for_page(ordering_columns, place):
+def where_condition_for_page(ordering_columns, place, dialect):
     """Construct the SQL condition required to restrict a query to the desired
     page.
 
@@ -31,10 +31,17 @@ def where_condition_for_page(ordering_columns, place):
     :type ordering_columns: list(:class:`.columns.OC`)
     :param place: The starting position for the page
     :type place: tuple
+    :param dialect: The SQL dialect in use
     :returns: An SQLAlchemy expression suitable for use in ``.where()`` or
         ``.filter()``.
     """
-    row, place_row = paging_condition(ordering_columns, place)
+    if len(ordering_columns) != len(place):
+        raise ValueError('bad paging value') # pragma: no cover
+
+    zipped = zip(ordering_columns, place)
+    swapped = [c.pair_for_comparison(value, dialect) for c, value in zipped]
+    row, place_row = zip(*swapped)
+
     if len(row) == 1:
         condition = row[0] > place_row[0]
     else:
@@ -71,6 +78,7 @@ def orm_page_from_rows(
 
 def perform_paging(q, per_page, place, backwards, orm=True, s=None):
     if orm:
+        s = q.session
         selectable = q.selectable
         column_descriptions = q.column_descriptions
         keys = [e._label_name for e in q._entities]
@@ -101,7 +109,7 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
                 q.append_column(e)
 
     if place:
-        condition = where_condition_for_page(order_cols, place)
+        condition = where_condition_for_page(order_cols, place, s.bind.dialect)
         # For aggregate queries, paging condition is applied *after*
         # aggregation. In SQL this means we need to use HAVING instead of
         # WHERE.
@@ -202,22 +210,6 @@ def core_page_from_rows(
     )
     page = Page(paging.rows, paging, keys=keys)
     return page
-
-
-def paging_condition(ordering_columns, place):
-    if len(ordering_columns) != len(place):
-        raise ValueError("bad paging value")  # pragma: no cover
-
-    def swapped_if_descending(c, value):
-        if not c.is_ascending:
-            return value, c.comparable_value
-        else:
-            return c.comparable_value, value
-
-    zipped = zip(ordering_columns, place)
-    swapped = [swapped_if_descending(c, value) for c, value in zipped]
-    row, place_row = zip(*swapped)
-    return row, place_row
 
 
 def process_args(after=False, before=False, page=False):
