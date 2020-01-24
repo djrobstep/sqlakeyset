@@ -3,10 +3,13 @@ import warnings
 import pytest
 from sqlalchemy import select, String, Column, Integer, ForeignKey, column, table, desc, func
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, aliased
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship, aliased, column_property, Bundle
 from sqlbag import temporary_database, S
 
-from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark, OC, process_args
+from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark
+from sqlakeyset.paging import process_args
+from sqlakeyset.columns import OC
 
 warnings.simplefilter("error")
 
@@ -20,22 +23,37 @@ BOOK = 't_Book'
 class Book(Base):
     __tablename__ = BOOK
     id = Column('book_id', Integer, primary_key=True)
-    name = Column(String(255))
+    name = Column(String(255), nullable=False)
     a = Column(Integer)
-    b = Column(Integer)
-    c = Column(Integer)
-    d = Column(Integer)
+    b = Column(Integer, nullable=False)
+    c = Column(Integer, nullable=False)
+    d = Column(Integer, nullable=False)
     author_id = Column(Integer, ForeignKey('author.id'))
     prequel_id = Column(Integer, ForeignKey(id), nullable=True)
     prequel = relationship('Book', remote_side=[id],
                            backref='sequel', uselist=False)
 
+    popularity = column_property(b + c*d)
+
+    @hybrid_property
+    def score(self):
+        return self.b * self.c - self.d
 
 class Author(Base):
     __tablename__ = 'author'
     id = Column(Integer, primary_key=True)
-    name = Column(String(255))
+    name = Column(String(255), nullable=False)
     books = relationship('Book', backref='author')
+
+    @hybrid_property
+    def book_count(self):
+        return len(self.books)
+
+    @book_count.expression
+    def book_count(cls):
+        return select([func.count(Book.id)]) \
+            .where(Book.author_id == cls.id) \
+            .label('book_count')
 
 
 JoinedInheritanceBase = declarative_base()
@@ -43,9 +61,9 @@ JoinedInheritanceBase = declarative_base()
 class Animal(JoinedInheritanceBase):
     # These columns all have weird names to test we're not relying on defaults
     id = Column('anim_id', Integer, primary_key=True)
-    category = Column('cat', String(255))
+    category = Column('cat', String(255), nullable=False)
     name = Column('nnom', String(255))
-    leg_count = Column('lc', Integer, default=0)
+    leg_count = Column('lc', Integer, nullable=False, default=0)
 
     __tablename__ = 'inh_animal'
     __mapper_args__ = {
@@ -62,7 +80,7 @@ class Invertebrate(Animal):
 
 class Vertebrate(Animal):
     id = Column('random_column_name', Integer, ForeignKey(Animal.id), primary_key=True)
-    vertebra_count = Column(Integer)
+    vertebra_count = Column(Integer, nullable=False, default=0)
     __tablename__ = 'inh_vertebrate'
     __mapper_args__ = {
         'polymorphic_identity': 'vertebrate',
@@ -77,7 +95,7 @@ class Arthropod(Invertebrate):
 
 class Mammal(Vertebrate):
     id = Column('mamamammal', Integer, ForeignKey(Vertebrate.id), primary_key=True)
-    nipple_count = Column(Integer)
+    nipple_count = Column(Integer, nullable=False, default=0)
     __tablename__ = 'inh_mammal'
     __mapper_args__ = {
         'polymorphic_identity': 'mammal',
@@ -161,12 +179,20 @@ def check_paging_orm(q):
 
                 page = paging.further
 
+                if len(gathered) < len(unpaged):
+                    # Ensure each page is the correct size
+                    assert paging.has_further
+                    assert len(page_with_paging) == per_page
+                else:
+                    assert not paging.has_further
+
                 if not page_with_paging:
                     assert not paging.has_further
                     assert paging.further == paging.current
                     assert paging.current_opposite == (None, not paging.backwards)
                     break
 
+            # Ensure union of pages is original q.all()
             assert gathered == unpaged
 
 
@@ -220,6 +246,9 @@ def test_orm_query2(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.id, Book.name)
         check_paging_orm(q=q)
+        q = s.query(Book).only_return_tuples(True) \
+            .order_by(Book.id, Book.name)
+        check_paging_orm(q=q)
 
 
 def test_orm_query3(dburl):
@@ -234,7 +263,46 @@ def test_orm_query4(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_aggregated(dburl):
+def test_orm_implicit_join(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Author.name, Book.id) \
+            .filter(Book.author_id == Author.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_hybrid_property(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.score, Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Book, Author).join(Book.author).order_by(Book.score, Book.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_column_property(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.popularity, Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Book, Author).join(Book.author).order_by(Book.popularity.desc(), Book.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_correlated_subquery_hybrid(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Author.id, Author.name).order_by(Author.book_count, Author.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_expression(dburl):
+    with S(dburl, echo=ECHO) as s:
+        key = func.coalesce(Book.a,0) + Book.b
+        q = s.query(Book).order_by(key, Book.id)
+        check_paging_orm(q=q)
+
+        q = s.query(Book).order_by(key.label('sort_by_me'), Book.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_aggregated(dburl):
     count = func.count().label('count')
     spec = [desc(count), desc(Author.name), Author.id]
 
@@ -244,7 +312,7 @@ def test_orm_query_aggregated(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_with_entities(dburl):
+def test_orm_with_entities(dburl):
     spec = [Author.name, Book.name, desc(Book.id)]
 
     with S(dburl, echo=ECHO) as s:
@@ -256,7 +324,7 @@ def test_orm_query_with_entities(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_subquery(dburl):
+def test_orm_subquery(dburl):
     count = func.count().label('count')
 
     with S(dburl, echo=ECHO) as s:
@@ -268,7 +336,7 @@ def test_orm_query_subquery(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_recursive_cte(pg_only_dburl):
+def test_orm_recursive_cte(pg_only_dburl):
     with S(pg_only_dburl, echo=ECHO) as s:
         # Start with "origins": books that don't have prequels
         seed = s.query(Book.id.label('id'), Book.id.label('origin')) \
@@ -295,15 +363,35 @@ def test_orm_query_recursive_cte(pg_only_dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_query_joined_inheritance(joined_inheritance_dburl):
+def test_orm_order_by_bundle(dburl):
+    Scorecard = Bundle('scorecard',
+                       # CW: existential horror
+                       Book.score.label('popularity'),
+                       Book.popularity.label('score'))
+
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Scorecard, Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Book, Scorecard).order_by(Book.id)
+        check_paging_orm(q=q)
+        q = s.query(Scorecard).order_by(Scorecard.c.popularity, Book.id)
+        check_paging_orm(q=q)
+
+
+def test_orm_joined_inheritance(joined_inheritance_dburl):
     with S(joined_inheritance_dburl, echo=ECHO) as s:
         q=s.query(Animal).order_by(Animal.leg_count, Animal.id)
         check_paging_orm(q=q)
 
-        q=s.query(Vertebrate).order_by(Vertebrate.vertebra_count, Vertebrate.id)
+        q=s.query(Vertebrate).order_by(Vertebrate.vertebra_count, Animal.id)
         check_paging_orm(q=q)
 
         q=s.query(Mammal).order_by(Mammal.nipple_count, Mammal.leg_count, Mammal.id)
+        check_paging_orm(q=q)
+
+        # Mix up accessing columns at various heirarchy levels
+        q=s.query(Mammal).order_by(Mammal.nipple_count, Mammal.leg_count,
+                                   Vertebrate.vertebra_count, Animal.id)
         check_paging_orm(q=q)
 
 
@@ -321,6 +409,28 @@ def test_core(dburl):
 
     with S(dburl, echo=ECHO) as s:
         check_paging_core(selectable=selectable, s=s)
+
+
+def test_core2(dburl):
+    with S(dburl, echo=ECHO) as s:
+        sel = select([Book.score]).order_by(Book.id)
+        check_paging_core(sel, s)
+
+        sel = select([Book.score]) \
+            .order_by(Author.id - Book.id, Book.id) \
+            .where(Author.id == Book.author_id)
+        check_paging_core(sel, s)
+
+        sel = select([Book.author_id, func.count()]) \
+            .group_by(Book.author_id) \
+            .order_by(func.sum(Book.popularity))
+        check_paging_core(sel, s)
+
+        v = func.sum(func.coalesce(Book.a, 0)) + func.min(Book.b)
+        sel = select([Book.author_id, func.count(), v]) \
+            .group_by(Book.author_id) \
+            .order_by(v)
+        check_paging_core(sel, s)
 
 
 def test_args():
@@ -351,3 +461,10 @@ def test_bookmarks():
     assert serialize_bookmark(last) == '<'
     assert twoway(first)
     assert twoway(last)
+
+
+def test_warn_when_sorting_by_nullable(dburl):
+    with pytest.warns(UserWarning):
+        with S(dburl, echo=ECHO) as s:
+            q = s.query(Book).order_by(Book.a, Book.id)
+            get_page(q, per_page=10, page=(None, False))

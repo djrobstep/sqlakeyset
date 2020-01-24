@@ -19,5 +19,6 @@ pymysql
 tox
 
 sphinx
+sphinx_rtd_theme
 wheel
 twine

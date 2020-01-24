@@ -1,11 +1,19 @@
-from pytest import raises
-from sqlalchemy import asc, desc, Column, Integer, String
+from pytest import mark, raises, warns
+from sqlalchemy import Column, Integer, String, asc, column, desc
+from sqlalchemy.orm import class_mapper
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import nullslast
+from sqlalchemy.sql.operators import asc_op, desc_op
 
-from sqlakeyset import OC, Paging, Page
-from sqlakeyset import serialize_bookmark
+from sqlakeyset import Page, Paging, serialize_bookmark
+from sqlakeyset.columns import (OC, derive_order_key,
+                                AppendedColumn, DirectColumn, AttributeColumn,
+                                _get_order_direction,
+                                _remove_order_direction,
+                                _reverse_order_direction)
 
 
+@mark.filterwarnings("ignore:.*NULLS FIRST.*")
 def test_oc():
     a = asc('a')
     b = desc('a')
@@ -31,6 +39,52 @@ def test_oc():
     assert n.name == 'a'
     assert n.quoted_full_name == 'a'
     assert repr(n) == '<OC: a DESC NULLS LAST>'
+
+
+def test_order_manipulation():
+    is_asc = lambda c: _get_order_direction(c) == asc_op
+    flip = _reverse_order_direction
+    scrub = _remove_order_direction
+    base = column('a')
+    l = base.label('test')
+    a = asc(base)
+    d = desc(base)
+    assert is_asc(a)
+    assert not is_asc(d)
+    equal_pairs = [
+        (scrub(a), base),
+        (scrub(d), base),
+        (scrub(asc(l)), scrub(a.label('test'))),
+        (flip(a), d),
+        (flip(d), a),
+    ]
+    for lhs, rhs in equal_pairs:
+        assert str(lhs) == str(rhs)
+
+
+def test_mappedocols():
+    a = AppendedColumn(OC(asc('a')))
+    b = DirectColumn(OC(desc('b')), 0)
+    assert a.oc.is_ascending
+    assert not b.oc.is_ascending
+    assert b.reversed.oc.is_ascending
+    assert b.reversed.oc.is_ascending
+
+
+def test_flask_sqla_compat():
+    # test djrobstep#18 for regression
+    class T(declarative_base()):
+        __tablename__ = 't'
+        i = Column(Integer, primary_key=True)
+    desc = {
+        'name': 'T',
+        'type': T,
+        'aliased': False,
+        'expr': class_mapper(T),
+        'entity': T,
+    }
+    mapping = derive_order_key(OC(T.i), desc, 0)
+    assert isinstance(mapping, AttributeColumn)
 
 
 def general_asserts(p):
@@ -114,7 +168,8 @@ def test_paging_object2_per_page_2():
 
 
 def test_paging_object_text():
-    ob = [OC(Column('id', Integer)), OC(Column('name', String))]
+    ob = [OC(Column('id', Integer, nullable=False)),
+          OC(Column('name', String, nullable=False))]
 
     p = Paging(T3, 2, ob, backwards=False, current_marker=None, get_marker=getitem)
 
@@ -131,3 +186,8 @@ def test_paging_object_text():
     general_asserts(p)
 
     assert p.further
+
+def test_warn_on_nullslast():
+    with warns(UserWarning):
+        ob = [OC(nullslast(column('id')))]
+        p = Paging(T1, 10, ob, backwards=False, current_marker=None, get_marker=getitem)
