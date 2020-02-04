@@ -16,7 +16,7 @@ setup(
     author='Robert Lechte',
     author_email='robertlechte@gmail.com',
     install_requires=[
-        'sqlalchemy',
+        'sqlalchemy>=1.3.11',
         'python-dateutil'
     ],
     zip_safe=False,
