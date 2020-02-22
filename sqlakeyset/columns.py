@@ -6,6 +6,7 @@ from warnings import warn
 import sqlalchemy
 from sqlalchemy import asc, column
 from sqlalchemy.orm import Bundle, Mapper, class_mapper
+from sqlalchemy.orm.attributes import QueryableAttribute
 from sqlalchemy.sql.elements import _label_reference
 from sqlalchemy.sql.expression import ClauseList, ColumnElement, Label
 from sqlalchemy.sql.operators import (asc_op, desc_op, nullsfirst_op,
@@ -324,7 +325,7 @@ def derive_order_key(ocol, desc, index):
             pass
 
     # is an attribute
-    if hasattr(expr, 'info'):
+    if isinstance(expr, QueryableAttribute):
         mapper = expr.parent
         tname = mapper.local_table.description
         if ocol.table_name == tname and ocol.name == expr.name:
