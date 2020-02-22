@@ -44,7 +44,7 @@ class Author(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     books = relationship('Book', backref='author')
-    info = Column(String(255), nullable=True)
+    info = Column(String(255), nullable=False)
 
     @hybrid_property
     def book_count(self):
@@ -111,13 +111,14 @@ def _dburl(request):
 
         if x == 1:
             b.a = None
-            b.author = Author(name='Willy Shakespeare')
+            b.author = Author(name='Willy Shakespeare',
+                              info='Old timer')
 
         data.append(b)
 
     for x in range(count):
         author = Author(name='Author {}'.format(x),
-                        info='Author {}'.format(x) + '\nHi' * (x % 3))
+                        info='Rank {}'.format(count + 1 - x))
         abooks = []
         for y in range((2*x) % 10):
             b = Book(name='Book {}-{}'.format(x, y), a=x+y, b=(y*x) % 2, c=count - x, d=99-y)
@@ -291,7 +292,7 @@ def test_orm_column_property(dburl):
 def test_column_named_info(dburl):
     # See issue djrobstep#24
     with S(dburl, echo=ECHO) as s:
-        q = s.query(Author).from_self().order_by(Author.info)
+        q = s.query(Author).from_self().order_by(Author.info, Author.id)
         check_paging_orm(q=q)
 
 
