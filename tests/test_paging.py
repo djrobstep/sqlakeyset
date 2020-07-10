@@ -279,6 +279,8 @@ def test_orm_hybrid_property(dburl):
         check_paging_orm(q=q)
         q = s.query(Book, Author).join(Book.author).order_by(Book.score, Book.id)
         check_paging_orm(q=q)
+        q = s.query(Book.score, Book, Author).join(Book.author).order_by(Book.score, Book.id)
+        check_paging_orm(q=q)
 
 
 def test_orm_column_property(dburl):
