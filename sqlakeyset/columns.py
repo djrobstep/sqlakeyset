@@ -324,12 +324,22 @@ def derive_order_key(ocol, desc, index):
         except sqlalchemy.orm.exc.UnmappedColumnError:
             pass
 
-    # is an attribute
+    # is an attribute of some kind
     if isinstance(expr, QueryableAttribute):
-        mapper = expr.parent
-        tname = mapper.local_table.description
-        if ocol.table_name == tname and ocol.name == expr.name:
-            return DirectColumn(ocol, index)
+        # We do our best here, but some attributes (e.g. hybrid properties)
+        # are very difficult to identify correctly, so those can fail and
+        # result in an AppendedColumn even when present in the selected
+        # entities.
+        try:
+            mapper = expr.parent
+            # TODO: is this name-based identification solid?
+            # Seems like weird self-joins with aliases or labels could
+            # result in false positives here...
+            tname = mapper.local_table.description
+            if ocol.table_name == tname and ocol.name == expr.name:
+                return DirectColumn(ocol, index)
+        except AttributeError:
+            pass
 
     # is an attribute with label
     try:
