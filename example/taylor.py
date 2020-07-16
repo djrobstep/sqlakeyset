@@ -47,51 +47,55 @@ New Romantics 2016 46"""
 
 Base = declarative_base()
 
+
 class Single(Base):
-    __tablename__ = 'single'
+    __tablename__ = "single"
     id = Column(Integer, primary_key=True)
     title = Column(String(255))
     year = Column(Integer)
     peak_position = Column(Integer)
 
+
 PER_PAGE = 3
 
 # this database needs to exist for the example to work
-DB = 'postgresql:///taylor'
+DB = "postgresql:///taylor"
+
 
 def print_page(p):
-    print('\n\nPage for key: {}\n'.format(
-        p.paging.bookmark_current))
+    print("\n\nPage for key: {}\n".format(p.paging.bookmark_current))
 
     for x in p:
-        print('{:>4d}  {}  {}'.format(x.peak_position, x.year, x.title))
-    print('\n')
+        print("{:>4d}  {}  {}".format(x.peak_position, x.year, x.title))
+    print("\n")
 
 
 def main():
     with S(DB, echo=False) as s:
-        s.execute("""
+        s.execute(
+            """
             drop table if exists single;
-        """)
+        """
+        )
 
-        s.execute("""
+        s.execute(
+            """
             create table if not exists
                 single(id serial, title text, year int, peak_position int)
-        """)
+        """
+        )
 
     with S(DB, echo=False) as s:
         for line in SINGLES.splitlines():
-            title, year, peak = line.rsplit(' ', 2)
+            title, year, peak = line.rsplit(" ", 2)
 
-            single = Single(
-                title=title,
-                year=year,
-                peak_position=peak
-            )
+            single = Single(title=title, year=year, peak_position=peak)
             s.add(single)
 
     with S(DB, echo=False) as s:
-        q = s.query(Single).order_by(Single.peak_position, desc(Single.year), Single.title, desc(Single.id))
+        q = s.query(Single).order_by(
+            Single.peak_position, desc(Single.year), Single.title, desc(Single.id)
+        )
 
         bookmark = None
 
@@ -103,5 +107,5 @@ def main():
                 break
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -9,18 +9,18 @@ PY2 = sys.version_info.major <= 2
 def decode(x):  # pragma: no cover
     if x is None:
         return x
-    return x.decode('utf-8')
+    return x.decode("utf-8")
 
 
 def encode(x):  # pragma: no cover
     if x is None:
         return x
-    return x.encode('utf-8')
+    return x.encode("utf-8")
 
 
 def is_integer(x):
     if PY2:
-        return isinstance(x, (int, long))
+        return isinstance(x, (int, long))  # noqa
     else:
         return isinstance(x, int)
 
@@ -53,7 +53,7 @@ class TextReader(object):  # pragma: no cover
 
     def next(self):
         row = self.reader.next()
-        return list(r.decode('utf-8') for r in row)
+        return list(r.decode("utf-8") for r in row)
 
     __next__ = next
 
@@ -71,12 +71,12 @@ class TextWriter(object):  # pragma: no cover
         self.stream = f
 
     def writerow(self, row):
-        e = [s.encode('utf-8') for s in row]
+        e = [s.encode("utf-8") for s in row]
         self.writer.writerow(e)
         # Fetch UTF-8 output from the queue ...
         data = self.queue.getvalue()
 
-        data = data.decode('utf-8')
+        data = data.decode("utf-8")
         # ... and reencode it into the target encoding
         self.stream.write(data)
         # empty queue
@@ -88,8 +88,8 @@ class TextWriter(object):  # pragma: no cover
             self.writerow(row)
 
 
-if PY2:  # flake8: noqa
-    text_type = unicode
+if PY2:  # noqa
+    text_type = unicode  # noqa
     binary_type = str
 else:
     text_type = str
@@ -98,6 +98,7 @@ else:
 
 if PY2:  # pragma: no cover
     import StringIO
+
     sio = StringIO.StringIO
     csvreader = TextReader
     csvwriter = TextWriter

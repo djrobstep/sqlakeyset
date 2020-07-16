@@ -6,11 +6,12 @@ import csv
 from .serial import Serial
 
 SERIALIZER_SETTINGS = dict(
-    lineterminator=str(''),
-    delimiter=str('~'),
+    lineterminator=str(""),
+    delimiter=str("~"),
     doublequote=False,
-    escapechar=str('\\'),
-    quoting=csv.QUOTE_NONE)
+    escapechar=str("\\"),
+    quoting=csv.QUOTE_NONE,
+)
 
 s = Serial(**SERIALIZER_SETTINGS)
 
@@ -24,7 +25,7 @@ def serialize_bookmark(marker):
     :returns: A CSV-like string using ``~`` as a separator."""
     x, backwards = marker
     ss = s.serialize_values(x)
-    direction = '<' if backwards else '>'
+    direction = "<" if backwards else ">"
     return direction + ss
 
 
@@ -40,10 +41,10 @@ def unserialize_bookmark(bookmark):
 
     direction = bookmark[0]
 
-    if direction not in ('>', '<'):
+    if direction not in (">", "<"):
         raise ValueError
 
-    backwards = direction == '<'
+    backwards = direction == "<"
     cells = s.unserialize_values(bookmark[1:])
     return cells, backwards
 
@@ -70,9 +71,9 @@ class Page(list):
         c = len(self)
 
         if c < 1:
-            raise RuntimeError('tried to select one but zero rows returned')
+            raise RuntimeError("tried to select one but zero rows returned")
         elif c > 1:
-            raise RuntimeError('too many rows returned')
+            raise RuntimeError("too many rows returned")
         else:
             return self[0]
 
@@ -88,19 +89,24 @@ class Paging:
     that page marker."""
 
     def __init__(
-            self,
-            rows,
-            per_page,
-            ocols,
-            backwards,
-            current_marker,
-            get_marker=None,
-            markers=None):
+        self,
+        rows,
+        per_page,
+        ocols,
+        backwards,
+        current_marker,
+        get_marker=None,
+        markers=None,
+    ):
 
         self.original_rows = rows
 
         if get_marker:
-            marker = lambda i: get_marker(self.original_rows[i], ocols)
+
+            def _get_marker(i):
+                return get_marker(self.original_rows[i], ocols)
+
+            marker = _get_marker
         else:
             if rows and not markers:
                 raise ValueError
@@ -207,7 +213,7 @@ class Paging:
         return len(self.rows) == self.per_page
 
     def __getattr__(self, name):
-        PREFIX = 'bookmark_'
+        PREFIX = "bookmark_"
         if name.startswith(PREFIX):
             _, attname = name.split(PREFIX, 1)
             x = getattr(self, attname)

@@ -9,20 +9,22 @@ from sqlalchemy.orm import Bundle, Mapper, class_mapper
 from sqlalchemy.orm.attributes import QueryableAttribute
 from sqlalchemy.sql.elements import _label_reference
 from sqlalchemy.sql.expression import ClauseList, ColumnElement, Label
-from sqlalchemy.sql.operators import (asc_op, desc_op, nullsfirst_op,
-                                      nullslast_op)
+from sqlalchemy.sql.operators import asc_op, desc_op, nullsfirst_op, nullslast_op
 
 _LABELLED = (Label, _label_reference)
 _ORDER_MODIFIERS = (asc_op, desc_op, nullsfirst_op, nullslast_op)
 _UNSUPPORTED_ORDER_MODIFIERS = (nullsfirst_op, nullslast_op)
 _WRAPPING_DEPTH = 1000
-_WRAPPING_OVERFLOW = ("Maximum element wrapping depth reached; there's "
-                      "probably a circularity in sqlalchemy that "
-                      "sqlakeyset doesn't know how to handle.")
+_WRAPPING_OVERFLOW = (
+    "Maximum element wrapping depth reached; there's "
+    "probably a circularity in sqlalchemy that "
+    "sqlakeyset doesn't know how to handle."
+)
 
 
 def parse_clause(clause):
     """Parse an ORDER BY clause into a list of :class:`OC` instances."""
+
     def _flatten(cl):
         if isinstance(cl, ClauseList):
             for subclause in cl.clauses:
@@ -30,22 +32,27 @@ def parse_clause(clause):
                     yield x
         else:
             yield cl
+
     return [OC(c) for c in _flatten(clause)]
 
 
 def _warn_if_nullable(x):
     try:
         if x.nullable or x.property.columns[0].nullable:
-            warn(f"Ordering by nullable column {x} can cause rows to be "
-                 "incorrectly omitted from the results. "
-                 "See the sqlakeyset README for more details.")
+            warn(
+                f"Ordering by nullable column {x} can cause rows to be "
+                "incorrectly omitted from the results. "
+                "See the sqlakeyset README for more details."
+            )
     except (AttributeError, IndexError, KeyError):
         pass
+
 
 class OC:
     """Wrapper class for ordering columns; i.e.  instances of
     :class:`sqlalchemy.sql.expression.ColumnElement` appearing in the ORDER BY
     clause of a query we are paging."""
+
     def __init__(self, x):
         if isinstance(x, str):
             x = column(x)
@@ -55,7 +62,7 @@ class OC:
         _warn_if_nullable(self.comparable_value)
         self.full_name = str(self.element)
         try:
-            table_name, name = self.full_name.split('.', 1)
+            table_name, name = self.full_name.split(".", 1)
         except ValueError:
             table_name = None
             name = self.full_name
@@ -93,14 +100,15 @@ class OC:
         """An :class:`OC` representing the same column ordering, but reversed."""
         new_uo = _reverse_order_direction(self.uo)
         if new_uo is None:
-            raise ValueError # pragma: no cover
+            raise ValueError  # pragma: no cover
         return OC(new_uo)
 
     def __str__(self):
         return str(self.uo)
 
     def __repr__(self):
-        return '<OC: {}>'.format(str(self))
+        return "<OC: {}>".format(str(self))
+
 
 def strip_labels(el):
     """Remove labels from a
@@ -109,7 +117,7 @@ def strip_labels(el):
         try:
             el = el.element
         except AttributeError:
-            raise ValueError # pragma: no cover
+            raise ValueError  # pragma: no cover
     return el
 
 
@@ -122,15 +130,15 @@ def _get_order_direction(x):
     :return: `asc_op`, `desc_op` or `None`
     """
     for _ in range(_WRAPPING_DEPTH):
-        mod = getattr(x, 'modifier', None)
+        mod = getattr(x, "modifier", None)
         if mod in (asc_op, desc_op):
             return mod
 
-        el = getattr(x, 'element', None)
+        el = getattr(x, "element", None)
         if el is None:
             return None
         x = el
-    raise Exception(_WRAPPING_OVERFLOW) # pragma: no cover
+    raise Exception(_WRAPPING_OVERFLOW)  # pragma: no cover
 
 
 def _reverse_order_direction(ce):
@@ -142,7 +150,7 @@ def _reverse_order_direction(ce):
     """
     x = copied = ce._clone()
     for _ in range(_WRAPPING_DEPTH):
-        mod = getattr(x, 'modifier', None)
+        mod = getattr(x, "modifier", None)
         if mod in (asc_op, desc_op):
             if mod == asc_op:
                 x.modifier = desc_op
@@ -150,13 +158,13 @@ def _reverse_order_direction(ce):
                 x.modifier = asc_op
             return copied
         else:
-            if not hasattr(x, 'element'):
+            if not hasattr(x, "element"):
                 return copied
             # Since we're going to change something inside x.element, we
             # need to clone another level deeper.
             x._copy_internals()
             x = x.element
-    raise Exception(_WRAPPING_OVERFLOW) # pragma: no cover
+    raise Exception(_WRAPPING_OVERFLOW)  # pragma: no cover
 
 
 def _remove_order_direction(ce):
@@ -170,13 +178,15 @@ def _remove_order_direction(ce):
     x = copied = ce._clone()
     parent = None
     for _ in range(_WRAPPING_DEPTH):
-        mod = getattr(x, 'modifier', None)
+        mod = getattr(x, "modifier", None)
         if mod in _UNSUPPORTED_ORDER_MODIFIERS:
-            warn("One of your order columns had a NULLS FIRST or NULLS LAST "
-                 "modifier; but sqlakeyset does not support order columns "
-                 "with nulls. YOUR RESULTS WILL BE WRONG. See the "
-                 "Limitations section of the sqlakeyset README for more "
-                 "information.")
+            warn(
+                "One of your order columns had a NULLS FIRST or NULLS LAST "
+                "modifier; but sqlakeyset does not support order columns "
+                "with nulls. YOUR RESULTS WILL BE WRONG. See the "
+                "Limitations section of the sqlakeyset README for more "
+                "information."
+            )
         if mod in _ORDER_MODIFIERS:
             x._copy_internals()
             if parent is None:
@@ -187,14 +197,14 @@ def _remove_order_direction(ce):
                 # the top-level expression.
                 parent.element = x = x.element
         else:
-            if not hasattr(x, 'element'):
+            if not hasattr(x, "element"):
                 return copied
             parent = x
             # Since we might change something inside x.element, we
             # need to clone another level deeper.
             x._copy_internals()
             x = x.element
-    raise Exception(_WRAPPING_OVERFLOW) # pragma: no cover
+    raise Exception(_WRAPPING_OVERFLOW)  # pragma: no cover
 
 
 class MappedOrderColumn:
@@ -214,7 +224,7 @@ class MappedOrderColumn:
 
     def get_from_row(self, internal_row):
         """Extract the value of this ordering column from a result row."""
-        raise NotImplementedError # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @property
     def ob_clause(self):
@@ -236,6 +246,7 @@ class MappedOrderColumn:
 class DirectColumn(MappedOrderColumn):
     """An ordering key that was directly included as a column in the original
     query."""
+
     def __init__(self, oc, index):
         super().__init__(oc)
         self.index = index
@@ -250,6 +261,7 @@ class DirectColumn(MappedOrderColumn):
 class AttributeColumn(MappedOrderColumn):
     """An ordering key that was included as a column attribute in the original
     query."""
+
     def __init__(self, oc, index, attr):
         super().__init__(oc)
         self.index = index
@@ -265,7 +277,9 @@ class AttributeColumn(MappedOrderColumn):
 class AppendedColumn(MappedOrderColumn):
     """An ordering key that requires an additional column to be added to the
     original query."""
+
     _counter = 0
+
     def __init__(self, oc, name=None):
         super().__init__(oc)
         if not name:
@@ -285,6 +299,7 @@ class AppendedColumn(MappedOrderColumn):
     def __repr__(self):
         return "Appended({!r})".format(self.oc)
 
+
 def derive_order_key(ocol, desc, index):
     """Attempt to derive the value of `ocol` from a query column.
 
@@ -300,8 +315,8 @@ def derive_order_key(ocol, desc, index):
         else:
             return None
 
-    entity = desc['entity']
-    expr = desc['expr']
+    entity = desc["entity"]
+    expr = desc["expr"]
 
     if isinstance(expr, Bundle):
         for key, col in expr.columns.items():
@@ -317,7 +332,7 @@ def derive_order_key(ocol, desc, index):
         is_a_table = True
 
     if is_a_table:  # is a table
-        mapper = class_mapper(desc['type'])
+        mapper = class_mapper(desc["type"])
         try:
             prop = mapper.get_property_by_column(ocol.element)
             return AttributeColumn(ocol, index, prop.key)
@@ -347,6 +362,7 @@ def derive_order_key(ocol, desc, index):
             return DirectColumn(ocol, index)
     except sqlalchemy.exc.ArgumentError:
         pass
+
 
 def find_order_key(ocol, column_descriptions):
     """Return a :class:`MappedOrderColumn` describing how to populate the

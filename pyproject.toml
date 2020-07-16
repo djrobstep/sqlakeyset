@@ -23,6 +23,7 @@ psycopg2-binary = "*"
 pymysql = "*"
 flake8 = "*"
 isort = "*"
+pytz = "*"
 black = { version = ">=19.10b0", python=">=3.6" }
 
 [tool.isort]

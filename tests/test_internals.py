@@ -3,50 +3,56 @@ from sqlalchemy import Column, Integer, String, asc, column, desc
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import nullslast
-from sqlalchemy.sql.operators import asc_op, desc_op
+from sqlalchemy.sql.operators import asc_op  # , desc_op
 
 from sqlakeyset import Page, Paging, serialize_bookmark
-from sqlakeyset.columns import (OC, derive_order_key,
-                                AppendedColumn, DirectColumn, AttributeColumn,
-                                _get_order_direction,
-                                _remove_order_direction,
-                                _reverse_order_direction)
+from sqlakeyset.columns import (
+    OC,
+    derive_order_key,
+    AppendedColumn,
+    DirectColumn,
+    AttributeColumn,
+    _get_order_direction,
+    _remove_order_direction,
+    _reverse_order_direction,
+)
 
 
 @mark.filterwarnings("ignore:.*NULLS FIRST.*")
 def test_oc():
-    a = asc('a')
-    b = desc('a')
-    c = asc('b')
-    n = nullslast(desc('a'))
+    a = asc("a")
+    b = desc("a")
+    c = asc("b")
+    n = nullslast(desc("a"))
 
     a = OC(a)
     b = OC(b)
     c = OC(c)
     n = OC(n)
 
-    assert str(a) == str(OC('a'))
+    assert str(a) == str(OC("a"))
     assert a.is_ascending
     assert not b.is_ascending
     assert not n.reversed.reversed.is_ascending
     assert n.reversed.is_ascending
-    assert not n.is_ascending # make sure reversed doesn't modify in-place
+    assert not n.is_ascending  # make sure reversed doesn't modify in-place
     assert str(a.element) == str(b.element) == str(n.element)
     assert str(a) == str(b.reversed)
     assert str(n.reversed.reversed) == str(n)
 
-    assert a.name == 'a'
-    assert n.name == 'a'
-    assert n.quoted_full_name == 'a'
-    assert repr(n) == '<OC: a DESC NULLS LAST>'
+    assert a.name == "a"
+    assert n.name == "a"
+    assert n.quoted_full_name == "a"
+    assert repr(n) == "<OC: a DESC NULLS LAST>"
 
 
 def test_order_manipulation():
-    is_asc = lambda c: _get_order_direction(c) == asc_op
+    def is_asc(c):
+        return _get_order_direction(c) == asc_op
     flip = _reverse_order_direction
     scrub = _remove_order_direction
-    base = column('a')
-    l = base.label('test')
+    base = column("a")
+    base_label = base.label("test")
     a = asc(base)
     d = desc(base)
     assert is_asc(a)
@@ -54,7 +60,7 @@ def test_order_manipulation():
     equal_pairs = [
         (scrub(a), base),
         (scrub(d), base),
-        (scrub(asc(l)), scrub(a.label('test'))),
+        (scrub(asc(base_label)), scrub(a.label("test"))),
         (flip(a), d),
         (flip(d), a),
     ]
@@ -63,8 +69,8 @@ def test_order_manipulation():
 
 
 def test_mappedocols():
-    a = AppendedColumn(OC(asc('a')))
-    b = DirectColumn(OC(desc('b')), 0)
+    a = AppendedColumn(OC(asc("a")))
+    b = DirectColumn(OC(desc("b")), 0)
     assert a.oc.is_ascending
     assert not b.oc.is_ascending
     assert b.reversed.oc.is_ascending
@@ -74,14 +80,15 @@ def test_mappedocols():
 def test_flask_sqla_compat():
     # test djrobstep#18 for regression
     class T(declarative_base()):
-        __tablename__ = 't'
+        __tablename__ = "t"
         i = Column(Integer, primary_key=True)
+
     desc = {
-        'name': 'T',
-        'type': T,
-        'aliased': False,
-        'expr': class_mapper(T),
-        'entity': T,
+        "name": "T",
+        "type": T,
+        "aliased": False,
+        "expr": class_mapper(T),
+        "entity": T,
     }
     mapping = derive_order_key(OC(T.i), desc, 0)
     assert isinstance(mapping, AttributeColumn)
@@ -105,23 +112,18 @@ def getitem(row, order_cols):
 
 
 T1 = []
-T2 = [
-    {'id': 1, 'b': 2},
-    {'id': 2, 'b': 1},
-    {'id': 3, 'b': 3}
-]
+T2 = [{"id": 1, "b": 2}, {"id": 2, "b": 1}, {"id": 3, "b": 3}]
 T3 = [
-    {'id': 1, 'name': 'test'},
-    {'id': 2, 'name': 'test1'},
-    {'id': 3, 'name': 'test2'},
-    {'id': 4, 'name': 'test3'},
-
+    {"id": 1, "name": "test"},
+    {"id": 2, "name": "test1"},
+    {"id": 3, "name": "test2"},
+    {"id": 4, "name": "test3"},
 ]
 
 
 def test_paging_objects1():
-    p = Page(['abc'])
-    assert p.one() == 'abc'
+    p = Page(["abc"])
+    assert p.one() == "abc"
 
     with raises(RuntimeError):
         Page([1, 2]).one()
@@ -129,7 +131,7 @@ def test_paging_objects1():
     with raises(RuntimeError):
         Page([]).one()
 
-    ob = [OC(x) for x in ['id', 'b']]
+    ob = [OC(x) for x in ["id", "b"]]
 
     p = Paging(T1, 10, ob, backwards=False, current_marker=None, get_marker=getitem)
     assert p.next == (None, False)
@@ -140,7 +142,7 @@ def test_paging_objects1():
 
 
 def test_paging_object2_per_page_3():
-    ob = [OC(x) for x in ['id', 'b']]
+    ob = [OC(x) for x in ["id", "b"]]
 
     p = Paging(T2, 3, ob, backwards=False, current_marker=None, get_marker=getitem)
     assert p.next == ((3, 3), False)
@@ -153,7 +155,7 @@ def test_paging_object2_per_page_3():
 
 
 def test_paging_object2_per_page_2():
-    ob = [OC(x) for x in ['id', 'b']]
+    ob = [OC(x) for x in ["id", "b"]]
 
     p = Paging(T2, 2, ob, backwards=False, current_marker=None, get_marker=getitem)
     assert p.next == ((2, 1), False)
@@ -168,26 +170,29 @@ def test_paging_object2_per_page_2():
 
 
 def test_paging_object_text():
-    ob = [OC(Column('id', Integer, nullable=False)),
-          OC(Column('name', String, nullable=False))]
+    ob = [
+        OC(Column("id", Integer, nullable=False)),
+        OC(Column("name", String, nullable=False)),
+    ]
 
     p = Paging(T3, 2, ob, backwards=False, current_marker=None, get_marker=getitem)
 
     assert p.rows
 
-    assert p.next == ((2, 'test1'), False)
+    assert p.next == ((2, "test1"), False)
     assert p.has_next
     general_asserts(p)
 
     assert not p.has_previous
-    assert p.previous == ((1, 'test'), True)
-    assert p.further == ((2, 'test1'), False)
+    assert p.previous == ((1, "test"), True)
+    assert p.further == ((2, "test1"), False)
 
     general_asserts(p)
 
     assert p.further
 
+
 def test_warn_on_nullslast():
     with warns(UserWarning):
-        ob = [OC(nullslast(column('id')))]
-        p = Paging(T1, 10, ob, backwards=False, current_marker=None, get_marker=getitem)
+        ob = [OC(nullslast(column("id")))]
+        Paging(T1, 10, ob, backwards=False, current_marker=None, get_marker=getitem)

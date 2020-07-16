@@ -10,18 +10,18 @@ import dateutil.parser
 from .compat import csvreader, csvwriter, sio, text_type, binary_type, is_integer
 
 
-NONE = 'x'
-TRUE = 'true'
-FALSE = 'false'
-STRING = 's'
-BINARY = 'b'
-INTEGER = 'i'
-FLOAT = 'f'
-DECIMAL = 'n'
-DATE = 'd'
-DATETIME = 'dt'
-TIME = 't'
-UUID = 'uuid'
+NONE = "x"
+TRUE = "true"
+FALSE = "false"
+STRING = "s"
+BINARY = "b"
+INTEGER = "i"
+FLOAT = "f"
+DECIMAL = "n"
+DATE = "d"
+DATETIME = "dt"
+TIME = "t"
+UUID = "uuid"
 
 
 class Serial(object):
@@ -44,11 +44,11 @@ class Serial(object):
 
     def serialize_values(self, values):
         if values is None:
-            return ''
+            return ""
         return self.join(self.serialize_value(_) for _ in values)
 
     def unserialize_values(self, s):
-        if s == '':
+        if s == "":
             return None
 
         return [self.unserialize_value(_) for _ in self.split(s)]
@@ -69,7 +69,7 @@ class Serial(object):
             c = STRING
         elif t == binary_type:
             c = BINARY
-            x = base64.b64encode(x).decode('utf-8')
+            x = base64.b64encode(x).decode("utf-8")
         elif is_integer(x):
             c = INTEGER
         elif t == float:
@@ -86,13 +86,14 @@ class Serial(object):
             c = UUID
         else:
             raise NotImplementedError(
-                "don't know how to serialize type of {} ({})".format(x, type(x)))
+                "don't know how to serialize type of {} ({})".format(x, type(x))
+            )
 
-        return '{}:{}'.format(c, x)
+        return "{}:{}".format(c, x)
 
     def unserialize_value(self, x):
         try:
-            c, v = x.split(':', 1)
+            c, v = x.split(":", 1)
         except ValueError:
             c = x
             v = None
@@ -108,7 +109,7 @@ class Serial(object):
         elif c == STRING:
             pass
         elif c == BINARY:
-            v = base64.b64decode(v.encode('utf-8'))
+            v = base64.b64decode(v.encode("utf-8"))
         elif c == INTEGER:
             v = int(v)
         elif c == FLOAT:
@@ -123,6 +124,6 @@ class Serial(object):
         elif c == UUID:
             v = uuid.UUID(v)
         else:
-            raise ValueError('unrecognized value {}'.format(x))
+            raise ValueError("unrecognized value {}".format(x))
 
         return v
