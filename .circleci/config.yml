@@ -9,8 +9,7 @@ jobs:
           POSTGRES_USER: circleci
           POSTGRES_DB: circleci
           POSTGRES_HOST_AUTH_METHOD: trust
-      - image: circleci/mysql:latest
-        command: [--default-authentication-plugin=mysql_native_password]
+      - image: circleci/mariadb:latest
         environment:
           MYSQL_DATABASE: circleci
           MYSQL_USER: circleci
