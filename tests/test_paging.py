@@ -152,7 +152,7 @@ def _dburl(request):
             abooks.append(b)
             data.append(b)
 
-    with temporary_database(request.param) as dburl:
+    with temporary_database(request.param, host='localhost') as dburl:
         with S(dburl) as s:
             Base.metadata.create_all(s.connection())
             s.add_all(data)
@@ -165,7 +165,7 @@ pg_only_dburl = pytest.fixture(params=["postgresql"])(_dburl)
 
 @pytest.fixture(params=["postgresql", "mysql"])
 def joined_inheritance_dburl(request):
-    with temporary_database(request.param) as dburl:
+    with temporary_database(request.param, host='localhost') as dburl:
         with S(dburl) as s:
             JoinedInheritanceBase.metadata.create_all(s.connection())
             s.add_all(
