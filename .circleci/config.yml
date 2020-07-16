@@ -14,7 +14,6 @@ jobs:
           MYSQL_DATABASE: circleci
           MYSQL_USER: circleci
           MYSQL_PASSWORD: ''
-          MYSQL_ROOT_PASSWORD: ''
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
 
     steps:
@@ -29,6 +28,9 @@ jobs:
       - run:
           name: create postgres user
           command: psql postgresql://@localhost/circleci -c 'create role postgres'
+      - run:
+        name: create mysql user
+        command: mysql -c "grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
       - run:
           name: Install poetry
           command: |
