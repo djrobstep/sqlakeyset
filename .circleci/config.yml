@@ -12,7 +12,6 @@ jobs:
       - image: circleci/mysql:latest
         environment:
           MYSQL_DATABASE: circleci
-          MYSQL_USER: circleci
           MYSQL_ROOT_PASSWORD: ''
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
 
