@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "sqlakeyset"
+version = "1.0"
+authors = [ "Robert Lechte <robertlechte@gmail.com>",]
+license = "Unlicense"
+readme = "README.rst"
+description = "offset-free paging for sqlalchemy"
+
+repository = "https://github.com/djrobstep/sqlakeyset"
+homepage = "https://github.com/djrobstep/sqlakeyset"
+
+[tool.poetry.dependencies]
+python = "*"
+sqlalchemy = ">=1.3.11"
+python-dateutil = "*"
+
+[tool.poetry.dev-dependencies]
+sqlbag = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-clarity = ">=0.3.0-alpha.0"
+psycopg2-binary = "*"
+pymysql = "*"
+flake8 = "*"
+isort = "*"
+black = { version = ">=19.10b0", python=">=3.6" }
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+line_length = 88

@@ -40,3 +40,4 @@ nosetests.xml
 .python-version
 
 .vim
+poetry.lock
