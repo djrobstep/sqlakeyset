@@ -29,8 +29,8 @@ jobs:
           name: create postgres user
           command: psql postgresql://@localhost/circleci -c 'create role postgres'
       - run:
-        name: create mysql user
-        command: mysql -c "grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
+          name: create mysql user
+          command: mysql -c "grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
       - run:
           name: Install poetry
           command: |
