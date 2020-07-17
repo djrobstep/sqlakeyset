@@ -107,7 +107,7 @@ jobs:
             bash deploy/gh-pages.sh
       - run:
           name: Push gh-pages to github
-          command: git push origin gh-pages
+          command: git push --force origin gh-pages
 
 
 workflows:
