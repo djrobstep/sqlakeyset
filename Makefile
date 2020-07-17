@@ -29,10 +29,13 @@ lint:
 	flake8 sqlakeyset
 	flake8 tests
 
+docs:
+	$(MAKE) -C doc html
+
 tidy: clean fmt lint
 
 
-all: pipupgrade clean lint tox
+all: pipupgrade clean lint tox docs
 
 publish:
 	python setup.py sdist bdist_wheel --universal
