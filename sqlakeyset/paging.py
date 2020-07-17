@@ -36,7 +36,7 @@ def where_condition_for_page(ordering_columns, place, dialect):
         ``.filter()``.
     """
     if len(ordering_columns) != len(place):
-        raise ValueError('bad paging value') # pragma: no cover
+        raise ValueError("bad paging value")  # pragma: no cover
 
     zipped = zip(ordering_columns, place)
     swapped = [c.pair_for_comparison(value, dialect) for c, value in zipped]

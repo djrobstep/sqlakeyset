@@ -42,12 +42,15 @@ s.custom_unserializations["z"] = unser_z
 class Y(str):
     pass
 
-rev = lambda x: x[::-1]
 
-s.register_type(Y, 'y', rev, rev)
+def reversestr(x):
+    return x[::-1]
 
 
-with io.open('tests/blns.txt') as f:
+s.register_type(Y, "y", reversestr, reversestr)
+
+
+with io.open("tests/blns.txt") as f:
     NAUGHTY = f.read().splitlines()
 
 

@@ -105,7 +105,7 @@ class OC:
 
     def pair_for_comparison(self, value, dialect):
         """Return a pair of SQL expressions representing comparable values for
-        this ordering column and a specified value. 
+        this ordering column and a specified value.
 
         :param value: A value to compare this column against.
         :param dialect: The :class:`sqlalchemy.engine.interfaces.Dialect` in

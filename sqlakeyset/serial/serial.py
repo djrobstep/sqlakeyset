@@ -22,28 +22,38 @@ DATETIME = "dt"
 TIME = "t"
 UUID = "uuid"
 
-parsedate = lambda x: dateutil.parser.parse(x).date()
-binencode = lambda x: base64.b64encode(x).decode('utf-8')
-bindecode = lambda x: base64.b64decode(x.encode('utf-8'))
+
+def parsedate(x):
+    return dateutil.parser.parse(x).date()
+
+
+def binencode(x):
+    return base64.b64encode(x).decode("utf-8")
+
+
+def bindecode(x):
+    return base64.b64decode(x.encode("utf-8"))
+
 
 TYPES = [
-    (str, 's'),
-    (int, 'i'),
-    (float, 'f'),
-    (bytes, 'b', bindecode, binencode),
-    (decimal.Decimal, 'n'),
-    (uuid.UUID, 'uuid'),
-    (datetime.datetime, 'dt', dateutil.parser.parse),
-    (datetime.date, 'd', parsedate),
-    (datetime.time, 't'),
+    (str, "s"),
+    (int, "i"),
+    (float, "f"),
+    (bytes, "b", bindecode, binencode),
+    (decimal.Decimal, "n"),
+    (uuid.UUID, "uuid"),
+    (datetime.datetime, "dt", dateutil.parser.parse),
+    (datetime.date, "d", parsedate),
+    (datetime.time, "t"),
 ]
 
 BUILTINS = {
-    'x': None,
-    'true': True,
-    'false': False,
+    "x": None,
+    "true": True,
+    "false": False,
 }
 BUILTINS_INV = {v: k for k, v in BUILTINS.items()}
+
 
 class Serial(object):
     def __init__(self, *args, **kwargs):
@@ -53,8 +63,7 @@ class Serial(object):
         for definition in TYPES:
             self.register_type(*definition)
 
-    def register_type(self, type, code,
-                      deserializer=None, serializer=None):
+    def register_type(self, type, code, deserializer=None, serializer=None):
         if serializer is None:
             serializer = str
         if deserializer is None:
@@ -92,7 +101,7 @@ class Serial(object):
     def serialize_value(self, x):
         try:
             c, x = self.custom_serializations[type(x)](x)
-            return '{}:{}'.format(c, x)
+            return "{}:{}".format(c, x)
         except KeyError:
             pass
 
@@ -118,4 +127,4 @@ class Serial(object):
         try:
             return BUILTINS[c]
         except KeyError:
-            raise ValueError('unrecognized value {}'.format(x))
+            raise ValueError("unrecognized value {}".format(x))

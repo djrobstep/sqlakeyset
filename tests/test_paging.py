@@ -22,7 +22,13 @@ import arrow
 from sqlalchemy_utils import ArrowType
 from datetime import timedelta
 
-from sqlakeyset import get_page, select_page, serialize_bookmark, unserialize_bookmark, custom_bookmark_type
+from sqlakeyset import (
+    get_page,
+    select_page,
+    serialize_bookmark,
+    unserialize_bookmark,
+    custom_bookmark_type,
+)
 from sqlakeyset.paging import process_args
 from sqlakeyset.columns import OC
 
@@ -34,10 +40,12 @@ ECHO = False
 
 BOOK = "t_Book"
 
-custom_bookmark_type(arrow.Arrow, 'da', deserializer=arrow.get)
+custom_bookmark_type(arrow.Arrow, "da", deserializer=arrow.get)
+
 
 def randtime():
     return arrow.now() - timedelta(seconds=randrange(86400))
+
 
 class Book(Base):
     __tablename__ = BOOK
@@ -162,7 +170,7 @@ def _dburl(request):
             abooks.append(b)
             data.append(b)
 
-    with temporary_database(request.param, host='localhost') as dburl:
+    with temporary_database(request.param, host="localhost") as dburl:
         with S(dburl) as s:
             Base.metadata.create_all(s.connection())
             s.add_all(data)
@@ -175,7 +183,7 @@ pg_only_dburl = pytest.fixture(params=["postgresql"])(_dburl)
 
 @pytest.fixture(params=["postgresql", "mysql"])
 def joined_inheritance_dburl(request):
-    with temporary_database(request.param, host='localhost') as dburl:
+    with temporary_database(request.param, host="localhost") as dburl:
         with S(dburl) as s:
             JoinedInheritanceBase.metadata.create_all(s.connection())
             s.add_all(
