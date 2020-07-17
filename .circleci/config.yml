@@ -85,6 +85,30 @@ jobs:
             poetry build
             poetry publish --username $PYPI_USERNAME --password $PYPI_PASSWORD
 
+  docs:
+    working_directory: ~/circleci
+    docker:
+      - image: circleci/python:3.8.2
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "16:c5:65:5d:31:50:a7:06:16:c2:ca:a6:3a:a9:70:be"
+      - checkout
+      - restore_cache:
+          key: deps1-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+      - run:
+          name: Install sphinx
+          command: sudo pip3 install sphinx sphinx_rtd_theme
+      - run:
+          name: Build gh-pages branch
+          command: |
+            git config user.email "circleci@circleci.com"
+            git config user.name "circleci"
+            bash deploy/gh-pages.sh
+      - run:
+          name: Push gh-pages to github
+          command: git push origin gh-pages
+
 
 workflows:
   version: 2
@@ -94,6 +118,10 @@ workflows:
       - publish:
           requires:
             - build
+          filters:
+            branches:
+              only: master
+      - docs:
           filters:
             branches:
               only: master
