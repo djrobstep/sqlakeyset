@@ -25,3 +25,9 @@ In most use cases, you shouldn't need to call these directly - bookmarks can be 
 .. autofunction:: serialize_bookmark
 .. autofunction:: unserialize_bookmark
 
+Custom Types in Bookmarks
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you're using custom types for your ordering columns, you will need to register them with sqlakeyset in order to use bookmarks.
+
+.. autofunction:: custom_bookmark_type

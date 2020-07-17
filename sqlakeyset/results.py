@@ -16,6 +16,20 @@ SERIALIZER_SETTINGS = dict(
 s = Serial(**SERIALIZER_SETTINGS)
 
 
+def custom_bookmark_type(type, code, deserializer=None, serializer=None):
+    """Register (de)serializers for bookmarks to use for a custom type.
+
+    :param type: Python type to register.
+    :paramtype type: type
+    :param code: A short alphabetic code to use to identify this type in serialized bookmarks.
+    :paramtype code: str
+    :param serializer: A function mapping `type` values to strings. Default is
+        `str`.
+    :param deserializer: Inverse for `serializer`. Default is the `type`
+        constructor."""
+    s.register_type(type, code, deserializer=deserializer, serializer=serializer)
+
+
 def serialize_bookmark(marker):
     """Serialize a place marker to a bookmark string.
 

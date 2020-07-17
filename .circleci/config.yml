@@ -22,7 +22,7 @@ jobs:
           key: deps1-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run:
           name: Wait for db
-          command: dockerize -wait tcp://localhost:5432 -timeout 1m
+          command: dockerize -wait tcp://localhost:5432 -wait tcp://localhost:3306 -timeout 1m
       - run: sudo apt-get update
       - run: sudo apt-get install -y postgresql-client
       - run: sudo apt-get install -y default-mysql-client

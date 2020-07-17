@@ -49,6 +49,7 @@ def test_oc():
 def test_order_manipulation():
     def is_asc(c):
         return _get_order_direction(c) == asc_op
+
     flip = _reverse_order_direction
     scrub = _remove_order_direction
     base = column("a")
