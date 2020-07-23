@@ -40,9 +40,9 @@ def _warn_if_nullable(x):
     try:
         if x.nullable or x.property.columns[0].nullable:
             warn(
-                f"Ordering by nullable column {x} can cause rows to be "
+                "Ordering by nullable column {} can cause rows to be "
                 "incorrectly omitted from the results. "
-                "See the sqlakeyset README for more details."
+                "See the sqlakeyset README for more details.".format(x)
             )
     except (AttributeError, IndexError, KeyError):
         pass
