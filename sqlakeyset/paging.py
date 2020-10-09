@@ -109,7 +109,8 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
                 q.append_column(e)
 
     if place:
-        condition = where_condition_for_page(order_cols, place, s.bind.dialect)
+        dialect = getattr(s, "bind", s).dialect
+        condition = where_condition_for_page(order_cols, place, dialect)
         # For aggregate queries, paging condition is applied *after*
         # aggregation. In SQL this means we need to use HAVING instead of
         # WHERE.
