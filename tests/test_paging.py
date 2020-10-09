@@ -546,7 +546,7 @@ def test_args():
         process_args(before=(1, 2), page=(1, 2))
     with pytest.raises(ValueError):
         process_args(after=(1, 2), page=(1, 2))
-    assert process_args(False, False, False) == (None, False)
+    assert process_args(False, False, None) == (None, False)
 
 
 def test_bookmarks():

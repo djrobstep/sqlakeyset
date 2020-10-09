@@ -213,14 +213,14 @@ def core_page_from_rows(
     return page
 
 
-def process_args(after=False, before=False, page=False):
+def process_args(after=False, before=False, page=None):
     if isinstance(page, str):
         page = unserialize_bookmark(page)
 
     if before is not False and after is not False:
         raise ValueError("after *OR* before")
 
-    if (before is not False or after is not False) and page is not False:
+    if (before is not False or after is not False) and page is not None:
         raise ValueError("specify either a page tuple, or before/after")
 
     if page:
@@ -239,7 +239,7 @@ def process_args(after=False, before=False, page=False):
 
 
 def select_page(
-    s, selectable, per_page=PER_PAGE_DEFAULT, after=False, before=False, page=False
+    s, selectable, per_page=PER_PAGE_DEFAULT, after=False, before=False, page=None
 ):
     """Get a page of results from a SQLAlchemy Core selectable.
 
@@ -266,7 +266,7 @@ def select_page(
     return core_get_page(s, selectable, per_page, place, backwards)
 
 
-def get_page(query, per_page=PER_PAGE_DEFAULT, after=False, before=False, page=False):
+def get_page(query, per_page=PER_PAGE_DEFAULT, after=False, before=False, page=None):
     """Get a page of results for an ORM query.
 
     Specify no more than one of the arguments ``page``, ``after`` or
