@@ -28,7 +28,7 @@ from sqlakeyset import (
     serialize_bookmark,
     unserialize_bookmark,
     custom_bookmark_type,
-    InvalidPage
+    InvalidPage,
 )
 from sqlakeyset.paging import process_args
 from sqlakeyset.columns import OC
@@ -222,7 +222,7 @@ def check_paging_orm(q):
 
                 # test InvalidPage when not using bookmark strings
                 cols, bw = page
-                broken_page = (*(cols if cols else []), 'an extra col'), bw
+                broken_page = (*(cols if cols else []), "an extra col"), bw
                 with pytest.raises(InvalidPage):
                     get_page(q, per_page=per_page, page=broken_page)
 

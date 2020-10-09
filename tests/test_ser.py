@@ -10,7 +10,6 @@ import pytz
 from pytest import raises
 from sqlakeyset.serial import (
     Serial,
-    InvalidPage,
     PageSerializationError,
     BadBookmark,
     UnregisteredType,
@@ -82,8 +81,10 @@ def test_register_type_twice():
 def test_bad_serializer():
     class Q(str):
         pass
+
     def fail(x):
         raise Exception()
+
     s.register_type(Q, "q", str, fail)
     with raises(PageSerializationError):
         s.serialize_value(Q())
