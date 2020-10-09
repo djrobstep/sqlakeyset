@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 import csv
 
-from .serial import Serial
+from .serial import Serial, BadBookmark
 
 SERIALIZER_SETTINGS = dict(
     lineterminator=str(""),
@@ -56,10 +56,12 @@ def unserialize_bookmark(bookmark):
     direction = bookmark[0]
 
     if direction not in (">", "<"):
-        raise ValueError
+        raise BadBookmark(
+            "Malformed bookmark string: doesn't start with a direction marker"
+        )
 
     backwards = direction == "<"
-    cells = s.unserialize_values(bookmark[1:])
+    cells = s.unserialize_values(bookmark[1:])  # might raise BadBookmark
     return cells, backwards
 
 
