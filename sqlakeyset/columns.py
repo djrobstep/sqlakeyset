@@ -42,9 +42,19 @@ def _warn_if_nullable(x):
             warn(
                 "Ordering by nullable column {} can cause rows to be "
                 "incorrectly omitted from the results. "
-                "See the sqlakeyset README for more details.".format(x)
+                "See the sqlakeyset README for more details.".format(x),
+                stacklevel=7,
             )
+            # stacklevel makes the warning appear in the user's calling code:
+            # 1 _warn_if_nullable
+            # 2 OC.__init__
+            # 3 list comprehension in parse_clause
+            # 4 parse_clause
+            # 5 perform_paging
+            # 6 get_page
+            # 7 <user code>
     except (AttributeError, IndexError, KeyError):
+        # x isn't a column, it's probably an expression or something
         pass
 
 
