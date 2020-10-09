@@ -227,7 +227,10 @@ def process_args(after=False, before=False, page=None):
         raise ValueError("specify either a page tuple, or before/after")
 
     if page:
-        place, backwards = page
+        try:
+            place, backwards = page
+        except ValueError as e:
+            raise InvalidPage("page is not a recognized string or tuple") from e
     elif after:
         place = after
         backwards = False

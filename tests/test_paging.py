@@ -220,12 +220,6 @@ def check_paging_orm(q):
                 serialized_page = serialize_bookmark(page)
                 page = unserialize_bookmark(serialized_page)
 
-                # test InvalidPage when not using bookmark strings
-                cols, bw = page
-                broken_page = (*(cols if cols else []), "an extra col"), bw
-                with pytest.raises(InvalidPage):
-                    get_page(q, per_page=per_page, page=broken_page)
-
                 page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
                 paging = page_with_paging.paging
 
@@ -321,6 +315,19 @@ def test_orm_query4(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.name)
         check_paging_orm(q=q)
+
+
+def test_orm_bad_page(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.name)
+
+        # check that malformed page tuple fails
+        with pytest.raises(InvalidPage):
+            get_page(q, per_page=10, page=((1,), False, 'Potatoes'))
+
+        # one order col, so check place with 2 elements fails
+        with pytest.raises(InvalidPage):
+            get_page(q, per_page=10, page=((1, 1), False))
 
 
 def test_orm_order_by_arrowtype(dburl):
