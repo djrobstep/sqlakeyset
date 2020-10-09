@@ -502,6 +502,10 @@ def test_core(dburl):
     with S(dburl, echo=ECHO) as s:
         check_paging_core(selectable=selectable, s=s)
 
+    # Check again with a connection instead of session (see #37):
+    with S(dburl, echo=ECHO) as s:
+        check_paging_core(selectable=selectable, s=s.connection())
+
 
 def test_core2(dburl):
     with S(dburl, echo=ECHO) as s:
