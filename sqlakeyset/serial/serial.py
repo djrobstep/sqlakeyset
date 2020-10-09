@@ -23,7 +23,7 @@ class PageSerializationError(ValueError):
     """Generic serialization error."""
 
 
-class UnregisteredType(PageSerializationError):
+class UnregisteredType(NotImplementedError):
     """An unregistered type was encountered when serializing a bookmark."""
 
 
