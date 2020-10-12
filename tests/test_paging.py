@@ -28,6 +28,7 @@ from sqlakeyset import (
     serialize_bookmark,
     unserialize_bookmark,
     custom_bookmark_type,
+    InvalidPage,
 )
 from sqlakeyset.paging import process_args
 from sqlakeyset.columns import OC
@@ -314,6 +315,19 @@ def test_orm_query4(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.name)
         check_paging_orm(q=q)
+
+
+def test_orm_bad_page(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.name)
+
+        # check that malformed page tuple fails
+        with pytest.raises(InvalidPage):
+            get_page(q, per_page=10, page=((1,), False, 'Potatoes'))
+
+        # one order col, so check place with 2 elements fails
+        with pytest.raises(InvalidPage):
+            get_page(q, per_page=10, page=((1, 1), False))
 
 
 def test_orm_order_by_arrowtype(dburl):

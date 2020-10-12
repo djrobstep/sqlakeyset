@@ -9,6 +9,28 @@ import dateutil.parser
 import csv
 from io import StringIO
 
+
+class InvalidPage(ValueError):
+    """An invalid page marker (in either tuple or bookmark string form) was
+    provided to a paging method."""
+
+
+class BadBookmark(InvalidPage):
+    """A bookmark string failed to parse"""
+
+
+class PageSerializationError(ValueError):
+    """Generic serialization error."""
+
+
+class UnregisteredType(NotImplementedError):
+    """An unregistered type was encountered when serializing a bookmark."""
+
+
+class ConfigurationError(Exception):
+    """An error to do with configuring custom bookmark types."""
+
+
 NONE = "x"
 TRUE = "true"
 FALSE = "false"
@@ -58,8 +80,8 @@ BUILTINS_INV = {v: k for k, v in BUILTINS.items()}
 class Serial(object):
     def __init__(self, *args, **kwargs):
         self.kwargs = kwargs
-        self.custom_serializations = {}
-        self.custom_unserializations = {}
+        self.serializers = {}
+        self.deserializers = {}
         for definition in TYPES:
             self.register_type(*definition)
 
@@ -68,12 +90,12 @@ class Serial(object):
             serializer = str
         if deserializer is None:
             deserializer = type
-        if type in self.custom_serializations:
-            raise ValueError("Type {type} already has a serializer registered.")
-        if code in self.custom_unserializations:
-            raise ValueError("Type code {code} is already in use.")
-        self.custom_serializations[type] = lambda x: (code, serializer(x))
-        self.custom_unserializations[code] = deserializer
+        if type in self.serializers:
+            raise ConfigurationError("Type {type} already has a serializer registered.")
+        if code in self.deserializers:
+            raise ConfigurationError("Type code {code} is already in use.")
+        self.serializers[type] = lambda x: (code, serializer(x))
+        self.deserializers[code] = deserializer
 
     def split(self, joined):
         s = StringIO(joined)
@@ -100,16 +122,25 @@ class Serial(object):
 
     def serialize_value(self, x):
         try:
-            c, x = self.custom_serializations[type(x)](x)
-            return "{}:{}".format(c, x)
+            serializer = self.serializers[type(x)]
         except KeyError:
-            pass
+            pass  # fall through to builtins
+        else:
+            try:
+                c, x = serializer(x)
+            except Exception as e:
+                raise PageSerializationError(
+                    "Custom bookmark serializer " "encountered error"
+                ) from e
+            else:
+                return "{}:{}".format(c, x)
 
         try:
             return BUILTINS_INV[x]
         except KeyError:
-            raise NotImplementedError(
-                "don't know how to serialize type of {} ({})".format(x, type(x))
+            raise UnregisteredType(
+                "Don't know how to serialize type of {} ({}). "
+                "Use custom_bookmark_type to register it.".format(x, type(x))
             )
 
     def unserialize_value(self, x):
@@ -120,11 +151,18 @@ class Serial(object):
             v = None
 
         try:
-            return self.custom_unserializations[c](v)
+            deserializer = self.deserializers[c]
         except KeyError:
-            pass
+            pass  # fall through to builtins
+        else:
+            try:
+                return deserializer(v)
+            except Exception as e:
+                raise BadBookmark(
+                    "Custom bookmark deserializer" "encountered error"
+                ) from e
 
         try:
             return BUILTINS[c]
         except KeyError:
-            raise ValueError("unrecognized value {}".format(x))
+            raise BadBookmark("unrecognized value {}".format(x))

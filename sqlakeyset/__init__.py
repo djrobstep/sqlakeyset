@@ -1,10 +1,16 @@
-from .paging import get_page, select_page
+from .paging import get_page, select_page, InvalidPage
 from .results import (
     Page,
     Paging,
     custom_bookmark_type,
     serialize_bookmark,
     unserialize_bookmark,
+)
+from .serial import (
+    BadBookmark,
+    ConfigurationError,
+    PageSerializationError,
+    UnregisteredType,
 )
 
 __all__ = [
@@ -15,4 +21,9 @@ __all__ = [
     "Page",
     "Paging",
     "custom_bookmark_type",
+    "InvalidPage",
+    "BadBookmark",
+    "ConfigurationError",
+    "PageSerializationError",
+    "UnregisteredType",
 ]

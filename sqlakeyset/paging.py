@@ -5,6 +5,7 @@ from sqlalchemy.util import lightweight_named_tuple
 
 from .columns import parse_clause, find_order_key
 from .results import Page, Paging, unserialize_bookmark
+from .serial import InvalidPage
 
 PER_PAGE_DEFAULT = 10
 
@@ -36,7 +37,9 @@ def where_condition_for_page(ordering_columns, place, dialect):
         ``.filter()``.
     """
     if len(ordering_columns) != len(place):
-        raise ValueError("bad paging value")  # pragma: no cover
+        raise InvalidPage(
+            "Page marker has different column count to query's order clause"
+        )
 
     zipped = zip(ordering_columns, place)
     swapped = [c.pair_for_comparison(value, dialect) for c, value in zipped]
@@ -224,7 +227,10 @@ def process_args(after=False, before=False, page=None):
         raise ValueError("specify either a page tuple, or before/after")
 
     if page:
-        place, backwards = page
+        try:
+            place, backwards = page
+        except ValueError as e:
+            raise InvalidPage("page is not a recognized string or tuple") from e
     elif after:
         place = after
         backwards = False
