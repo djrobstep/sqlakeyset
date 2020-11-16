@@ -11,6 +11,8 @@ from sqlalchemy.sql.elements import _label_reference
 from sqlalchemy.sql.expression import ClauseList, ColumnElement, Label
 from sqlalchemy.sql.operators import asc_op, desc_op, nullsfirst_op, nullslast_op
 
+from .sqla import order_by_clauses
+
 _LABELLED = (Label, _label_reference)
 _ORDER_MODIFIERS = (asc_op, desc_op, nullsfirst_op, nullslast_op)
 _UNSUPPORTED_ORDER_MODIFIERS = (nullsfirst_op, nullslast_op)
@@ -22,18 +24,22 @@ _WRAPPING_OVERFLOW = (
 )
 
 
-def parse_clause(clause):
-    """Parse an ORDER BY clause into a list of :class:`OC` instances."""
+def parse_ob_clause(selectable):
+    """Parse the ORDER BY clause of a selectable into a list of :class:`OC` instances."""
 
     def _flatten(cl):
         if isinstance(cl, ClauseList):
             for subclause in cl.clauses:
                 for x in _flatten(subclause):
                     yield x
+        elif isinstance(cl, (tuple, list)):
+            for xs in cl:
+                for x in _flatten(xs):
+                    yield x
         else:
             yield cl
 
-    return [OC(c) for c in _flatten(clause)]
+    return [OC(c) for c in _flatten(order_by_clauses(selectable))]
 
 
 def _warn_if_nullable(x):
@@ -245,11 +251,11 @@ class MappedOrderColumn:
     This wraps an :class:`OC` with one extra piece of information: how to
     retrieve the value of the ordering key from a result row. For some queries,
     this requires adding extra entities to the query; in this case,
-    ``extra_entity`` will be set."""
+    ``extra_column`` will be set."""
 
     def __init__(self, oc):
         self.oc = oc
-        self.extra_entity = None
+        self.extra_column = None
         """An extra SQLAlchemy ORM entity that this ordering column needs to
         add to its query in order to retrieve its value at each row. If no
         extra data is required, the value of this property will be ``None``."""
@@ -318,14 +324,14 @@ class AppendedColumn(MappedOrderColumn):
             AppendedColumn._counter += 1
             name = "_sqlakeyset_oc_{}".format(AppendedColumn._counter)
         self.name = name
-        self.extra_entity = self.oc.comparable_value.label(self.name)
+        self.extra_column = self.oc.comparable_value.label(self.name)
 
     def get_from_row(self, row):
         return getattr(row, self.name)
 
     @property
     def ob_clause(self):
-        col = self.extra_entity
+        col = self.extra_column
         return col if self.oc.is_ascending else col.desc()
 
     def __repr__(self):
@@ -351,7 +357,7 @@ def derive_order_key(ocol, desc, index):
     expr = desc["expr"]
 
     if isinstance(expr, Bundle):
-        for key, col in expr.columns.items():
+        for key, col in dict(expr.columns).items():
             if strip_labels(col).compare(ocol.comparable_value):
                 return AttributeColumn(ocol, index, key)
 
