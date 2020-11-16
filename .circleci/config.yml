@@ -20,12 +20,12 @@ jobs:
       - checkout
       - restore_cache:
           key: deps1-{{ .Branch }}-{{ checksum "pyproject.toml" }}
-      - run:
-          name: Wait for db
-          command: dockerize -wait tcp://localhost:5432 -wait tcp://localhost:3306 -timeout 1m
       - run: sudo apt-get update
       - run: sudo apt-get install -y postgresql-client
       - run: sudo apt-get install -y default-mysql-client
+      - run:
+          name: Wait for db
+          command: dockerize -wait tcp://localhost:5432 -wait tcp://localhost:3306 -timeout 1m
       - run:
           name: create postgres user
           command: psql postgresql://@localhost/circleci -c 'create role postgres'
