@@ -56,9 +56,8 @@ jobs:
           command: |
             . ~/.venv/bin/activate
             make test
-      - store_artifacts:
-          path: test-reports/
-          destination: tr1
+      - store_test_results:
+          path: test-reports
 
   publish:
     working_directory: ~/circleci

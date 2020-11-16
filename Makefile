@@ -2,7 +2,7 @@
 # test commands and arguments
 tcommand = PYTHONPATH=. py.test -x
 tmessy = -svv
-targs = --cov-report term-missing --cov sqlakeyset
+targs = --cov-report term-missing --cov sqlakeyset --junitxml=test-reports/pytest.xml
 
 pip:
 	pip install --upgrade pip
