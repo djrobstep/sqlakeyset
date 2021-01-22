@@ -13,6 +13,7 @@ homepage = "https://github.com/djrobstep/sqlakeyset"
 python = ">=3.4"
 sqlalchemy = ">=1.3.11"
 python-dateutil = "*"
+packaging = ">=20.0"
 
 [tool.poetry.dev-dependencies]
 sqlbag = "*"
