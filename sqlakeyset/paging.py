@@ -1,27 +1,23 @@
 """Main paging interface and implementation."""
 
-from sqlalchemy import func
-from sqlalchemy.util import lightweight_named_tuple
+from functools import partial
 
-from .columns import parse_clause, find_order_key
+from sqlalchemy import func
+
+from .columns import find_order_key, parse_ob_clause
 from .results import Page, Paging, unserialize_bookmark
 from .serial import InvalidPage
+from .sqla import (
+    core_coerce_row,
+    core_result_type,
+    group_by_clauses,
+    orm_coerce_row,
+    orm_query_keys,
+    orm_result_type,
+    orm_to_selectable,
+)
 
 PER_PAGE_DEFAULT = 10
-
-
-def orm_result_type(query):
-    """Return the type constructor for rows that would be returned by a given
-    query; or the identity function for queries that return a single entity.
-
-    :param query: The query to inspect.
-    :type query: :class:`sqlalchemy.orm.query.Query`.
-    :returns: either a named tuple type or the identity."""
-
-    if query.is_single_entity:
-        return lambda x: x[0]
-    labels = [e._label_name for e in query._entities]
-    return lightweight_named_tuple("result", labels)
 
 
 def where_condition_for_page(ordering_columns, place, dialect):
@@ -59,17 +55,12 @@ def orm_page_from_rows(
     :func:`orm_get_page`) into a :class:`.results.Page` for external
     consumers."""
 
-    ocols, mapped_ocols, extra_entities, rows, keys = paging_result
+    ocols, mapped_ocols, extra_columns, rows, keys = paging_result
 
-    # orm_get_page might have added some extra columns to the query in order
-    # to get the keys for the bookmark. Here, we split the rows back to the
-    # requested data and the ordering keys.
-    def clean_row(row):
-        """Trim off the extra entities."""
-        N = len(row) - len(extra_entities)
-        return result_type(row[:N])
-
-    out_rows = [clean_row(row) for row in rows]
+    make_row = partial(
+        orm_coerce_row, extra_columns=extra_columns, result_type=result_type
+    )
+    out_rows = [make_row(row) for row in rows]
     key_rows = [tuple(col.get_from_row(row) for col in mapped_ocols) for row in rows]
     paging = Paging(
         out_rows, page_size, ocols, backwards, current_marker, markers=key_rows
@@ -81,16 +72,15 @@ def orm_page_from_rows(
 
 def perform_paging(q, per_page, place, backwards, orm=True, s=None):
     if orm:
+        selectable = orm_to_selectable(q)
         s = q.session
-        selectable = q.selectable
         column_descriptions = q.column_descriptions
-        keys = [e._label_name for e in q._entities]
+        keys = orm_query_keys(q)
     else:
         selectable = q
         column_descriptions = q._raw_columns
 
-    ob_clause = selectable._order_by_clause
-    order_cols = parse_clause(ob_clause)
+    order_cols = parse_ob_clause(selectable)
     if backwards:
         order_cols = [c.reversed for c in order_cols]
     mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
@@ -100,16 +90,14 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
     if orm:
         q = q.only_return_tuples(True)
 
-    extra_entities = [
-        col.extra_entity for col in mapped_ocols if col.extra_entity is not None
+    extra_columns = [
+        col.extra_column for col in mapped_ocols if col.extra_column is not None
     ]
-    if extra_entities:
-        if orm:
-            existing_entities = (e.expr for e in q._entities)
-            q = q.with_entities(*existing_entities, *extra_entities)
-        else:
-            for e in extra_entities:
-                q.append_column(e)
+    if hasattr(q, "add_columns"):  # ORM or SQLAlchemy 1.4+
+        q = q.add_columns(*extra_columns)
+    else:
+        for col in extra_columns:  # SQLAlchemy Core <1.4
+            q = q.column(col)
 
     if place:
         dialect = getattr(s, "bind", s).dialect
@@ -117,7 +105,7 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
         # For aggregate queries, paging condition is applied *after*
         # aggregation. In SQL this means we need to use HAVING instead of
         # WHERE.
-        groupby = selectable._group_by_clause
+        groupby = group_by_clauses(selectable)
         if groupby is not None and len(groupby) > 0:
             q = q.having(condition)
         elif orm:
@@ -130,11 +118,11 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
         rows = q.all()
     else:
         selected = s.execute(q)
-        keys = selected.keys()
-        N = len(keys) - len(extra_entities)
+        keys = list(selected.keys())
+        N = len(keys) - len(extra_columns)
         keys = keys[:N]
         rows = selected.fetchall()
-    return order_cols, mapped_ocols, extra_entities, rows, keys
+    return order_cols, mapped_ocols, extra_columns, rows, keys
 
 
 def orm_get_page(q, per_page, place, backwards):
@@ -153,7 +141,6 @@ def orm_get_page(q, per_page, place, backwards):
     page = orm_page_from_rows(
         paging_result, result_type, per_page, backwards, current_marker=place
     )
-
     return page
 
 
@@ -169,10 +156,11 @@ def core_get_page(s, selectable, per_page, place, backwards):
     :returns: :class:`Page`
     """
     # We need the result schema for the *original* query in order to properly
-    # trim off our extra_entities. As far as I can tell, this is the only
-    # way to get it. LIMIT 0 to minimize database load (though the fact that a
-    # round trip to the DB has to happen at all is regrettable).
-    result_proxy = s.execute(selectable.limit(0))
+    # trim off our extra_columns. As far as I can tell, this is the only
+    # way to get it without copy-pasting chunks of the sqlalchemy internals.
+    # LIMIT 0 to minimize database load (though the fact that a round trip to
+    # the DB has to happen at all is regrettable).
+    result_type = core_result_type(selectable, s)
     paging_result = perform_paging(
         q=selectable,
         per_page=per_page,
@@ -182,32 +170,22 @@ def core_get_page(s, selectable, per_page, place, backwards):
         s=s,
     )
     page = core_page_from_rows(
-        paging_result, result_proxy, per_page, backwards, current_marker=place
+        paging_result, result_type, per_page, backwards, current_marker=place
     )
     return page
 
 
 def core_page_from_rows(
-    paging_result, result_proxy, page_size, backwards=False, current_marker=None
+    paging_result, result_type, page_size, backwards=False, current_marker=None
 ):
     """Turn a raw page of results for an SQLAlchemy Core query (as obtained by
     :func:`.core_get_page`) into a :class:`.Page` for external consumers."""
     ocols, mapped_ocols, extra_columns, rows, keys = paging_result
 
-    def clean_row(row):
-        """Trim off the extra columns and return as a correct-as-possible
-        RowProxy."""
-        if not extra_columns:
-            return row
-        N = len(row._row) - len(extra_columns)
-        row = row[:N]
-        process_row = result_proxy._process_row
-        metadata = result_proxy._metadata
-        keymap = metadata._keymap
-        processors = metadata._processors
-        return process_row(metadata, row, processors, keymap)
-
-    out_rows = [clean_row(row) for row in rows]
+    make_row = partial(
+        core_coerce_row, extra_columns=extra_columns, result_type=result_type
+    )
+    out_rows = [make_row(row) for row in rows]
     key_rows = [tuple(col.get_from_row(row) for col in mapped_ocols) for row in rows]
     paging = Paging(
         out_rows, page_size, ocols, backwards, current_marker, markers=key_rows

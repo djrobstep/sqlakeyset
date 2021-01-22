@@ -1,7 +1,9 @@
 import warnings
 from random import randrange
+from packaging import version
 
 import pytest
+import sqlalchemy
 from sqlalchemy import (
     select,
     String,
@@ -19,8 +21,17 @@ from sqlalchemy.orm import relationship, aliased, column_property, Bundle
 from sqlbag import temporary_database, S
 
 import arrow
-from sqlalchemy_utils import ArrowType
 from datetime import timedelta
+
+# XXX monkeypatch until sqlalchemy_utils supports sqlalchemy 1.4
+try:
+    from sqlalchemy.orm.query import _ColumnEntity
+except ImportError:
+    from sqlalchemy.orm.context import _ColumnEntity
+    import sqlalchemy.orm.query
+    sqlalchemy.orm.query._ColumnEntity = _ColumnEntity
+
+from sqlalchemy_utils import ArrowType
 
 from sqlakeyset import (
     get_page,
@@ -323,7 +334,7 @@ def test_orm_bad_page(dburl):
 
         # check that malformed page tuple fails
         with pytest.raises(InvalidPage):
-            get_page(q, per_page=10, page=((1,), False, 'Potatoes'))
+            get_page(q, per_page=10, page=((1,), False, "Potatoes"))
 
         # one order col, so check place with 2 elements fails
         with pytest.raises(InvalidPage):
@@ -468,6 +479,12 @@ def test_orm_recursive_cte(pg_only_dburl):
         check_paging_orm(q=q)
 
 
+bundle_bug = version.parse(sqlalchemy.__version__) == version.parse("1.4.0b1")
+
+
+@pytest.mark.skipif(
+    bundle_bug, reason="https://github.com/sqlalchemy/sqlalchemy/issues/5702"
+)
 def test_orm_order_by_bundle(dburl):
     Scorecard = Bundle(
         "scorecard",
