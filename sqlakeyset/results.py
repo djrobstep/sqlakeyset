@@ -132,6 +132,7 @@ class Paging:
 
         self.per_page = per_page
         self.backwards = backwards
+        self._get_marker = marker
 
         excess = rows[per_page:]
         rows = rows[:per_page]
@@ -229,6 +230,14 @@ class Paging:
         """Boolean flagging whether this page contains as many rows as were
         requested in ``per_page``."""
         return len(self.rows) == self.per_page
+
+    def get_marker_at(self, i):
+        """Get the marker for item at the given row index."""
+        return self._get_marker(i), self.backwards
+
+    def get_bookmark_at(self, i):
+        """Get the bookmark for item at the given row index."""
+        return serialize_bookmark(self.get_marker_at(i))
 
     def __getattr__(self, name):
         PREFIX = "bookmark_"

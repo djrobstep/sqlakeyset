@@ -753,3 +753,31 @@ def test_multiple_engines(dburl, joined_inheritance_dburl):
     s.close()
     Base.metadata.bind = None
     JoinedInheritanceBase.metadata.bind = None
+
+
+def test_marker_and_bookmark_per_item(dburl):
+
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book).order_by(Book.id)
+        page = get_page(q, per_page=3)
+
+        paging = page.paging
+        assert len(page) == 3
+        assert paging.get_marker_at(0) == ((1,), False)
+        assert paging.get_marker_at(1) == ((2,), False)
+        assert paging.get_marker_at(2) == ((3,), False)
+
+        assert paging.get_bookmark_at(0) == ">i:1"
+        assert paging.get_bookmark_at(1) == ">i:2"
+        assert paging.get_bookmark_at(2) == ">i:3"
+
+        place, _ = paging.get_marker_at(2)
+        page = get_page(q, per_page=3, before=place)
+
+        paging = page.paging
+        assert len(page) == 2
+        assert paging.get_marker_at(0) == ((2,), True)
+        assert paging.get_marker_at(1) == ((1,), True)
+
+        assert paging.get_bookmark_at(0) == "<i:2"
+        assert paging.get_bookmark_at(1) == "<i:1"
