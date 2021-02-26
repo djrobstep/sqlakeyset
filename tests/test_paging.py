@@ -1,3 +1,4 @@
+import enum
 import warnings
 from random import randrange
 from packaging import version
@@ -8,6 +9,7 @@ from sqlalchemy import (
     select,
     String,
     Column,
+    Enum,
     Integer,
     ForeignKey,
     column,
@@ -18,6 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship, aliased, column_property, Bundle
+from sqlalchemy.types import TypeDecorator
 from sqlbag import temporary_database, S
 
 import arrow
@@ -57,6 +60,32 @@ custom_bookmark_type(arrow.Arrow, "da", deserializer=arrow.get)
 
 def randtime():
     return arrow.now() - timedelta(seconds=randrange(86400))
+
+# Custom type to guard against double processing: see issue #47
+class MyInteger(float): pass
+class DoubleResultProcessing(Exception): pass
+class GuardDoubleResultProcessing(TypeDecorator):
+    impl = Integer
+
+    def process_result_value(self, value, dialect):
+        if isinstance(value, MyInteger):
+            raise DoubleResultProcessing("Result processor was called on an already processed value!")
+        return MyInteger(value)
+
+    def process_bind_param(self, value, dialect):
+        return float(value)
+
+class Colour(enum.Enum):
+    red = 0
+    green = 1
+    blue = 2
+
+class Light(Base):
+    __tablename__ = 't_Light'
+    id = Column(Integer, primary_key=True)
+    intensity = Column(Integer)
+    colour = Column(Enum(Colour))
+    myint = Column(GuardDoubleResultProcessing)
 
 
 class Book(Base):
@@ -181,6 +210,9 @@ def _dburl(request):
                 b.prequel = abooks[(2 * y + 1) % len(abooks)]
             abooks.append(b)
             data.append(b)
+
+    data += [Light(colour=Colour(i%3), intensity=(i*13)%53, myint=i)
+             for i in range(99)]
 
     with temporary_database(request.param, host="localhost") as dburl:
         with S(dburl) as s:
@@ -564,6 +596,17 @@ def test_core2(dburl):
             .order_by(v)
         )
         check_paging_core(sel, s)
+
+def test_core_enum(dburl):
+    with S(dburl, echo=ECHO) as s:
+        selectable = select([Light.id, Light.colour]).order_by(Light.intensity, Light.id)
+        check_paging_core(selectable=selectable, s=s)
+
+def test_core_result_processor(dburl):
+    with S(dburl, echo=ECHO) as s:
+        selectable = select([Light.id, Light.myint]).order_by(Light.intensity, Light.id)
+        check_paging_core(selectable=selectable, s=s)
+
 
 
 def test_args():
