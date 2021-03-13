@@ -189,7 +189,7 @@ def _dburl(request):
         yield dburl
 
 
-dburl = pytest.fixture(params=["postgresql", "mysql"])(_dburl)
+dburl = pytest.fixture(params=["sqlite", "postgresql", "mysql"])(_dburl)
 pg_only_dburl = pytest.fixture(params=["postgresql"])(_dburl)
 
 
