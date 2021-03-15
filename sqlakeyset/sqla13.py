@@ -46,7 +46,7 @@ def core_coerce_row(row, extra_columns, result_type):
     if not extra_columns:
         return row
     N = len(row._row) - len(extra_columns)
-    return result_type(row[:N])
+    return result_type(row._row[:N])
 
 
 def orm_query_keys(query):

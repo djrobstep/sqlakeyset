@@ -19,7 +19,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps1-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run: sudo apt-get update
       - run: sudo apt-get install -y postgresql-client
       - run: sudo apt-get install -y default-mysql-client
@@ -44,7 +44,7 @@ jobs:
 
             poetry install
       - save_cache:
-          key: deps1-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
           paths:
             - "~/.venv"
       - run:
@@ -62,7 +62,8 @@ jobs:
           name: Test with SQLAlchemy 1.4 beta
           command: |
             . ~/.venv/bin/activate
-            pip install sqlalchemy~=1.4b
+            # sqla14-compatible sqlbag isn't on PyPI yet
+            pip install --upgrade sqlalchemy~=1.4b "git+https://github.com/djrobstep/sqlbag.git@f4759318710ef33dc041710a6ff38f03d3c39b56"
             make test
       - store_test_results:
           path: test-reports
@@ -75,7 +76,7 @@ jobs:
       - setup_remote_docker
       - checkout
       - restore_cache:
-          key: deps1-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run:
           name: Install poetry, deps
           command: |
