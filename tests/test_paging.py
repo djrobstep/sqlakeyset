@@ -68,6 +68,9 @@ class MyInteger(float):
     pass
 
 
+custom_bookmark_type(MyInteger, "mi")
+
+
 class DoubleResultProcessing(Exception):
     pass
 
@@ -92,12 +95,20 @@ class Colour(enum.Enum):
     blue = 2
 
 
+custom_bookmark_type(
+    Colour,
+    "col",
+    serializer=lambda c: c.name,
+    deserializer=lambda s: Colour[s],
+)
+
+
 class Light(Base):
     __tablename__ = "t_Light"
     id = Column(Integer, primary_key=True)
     intensity = Column(Integer, nullable=False)
-    colour = Column(Enum(Colour))
-    myint = Column(GuardDoubleResultProcessing)
+    colour = Column(Enum(Colour), nullable=False)
+    myint = Column(GuardDoubleResultProcessing, nullable=False)
 
 
 class Book(Base):
@@ -233,12 +244,13 @@ def _dburl(request):
             s.add_all(data)
         yield dburl
 
+SUPPORTED_ENGINES=["sqlite", "postgresql", "mysql"]
 
-dburl = pytest.fixture(params=["sqlite", "postgresql", "mysql"])(_dburl)
+dburl = pytest.fixture(params=SUPPORTED_ENGINES)(_dburl)
 pg_only_dburl = pytest.fixture(params=["postgresql"])(_dburl)
 
 
-@pytest.fixture(params=["postgresql", "mysql"])
+@pytest.fixture(params=SUPPORTED_ENGINES)
 def joined_inheritance_dburl(request):
     with temporary_database(request.param, host="localhost") as dburl:
         with S(dburl) as s:
@@ -619,9 +631,23 @@ def test_core_enum(dburl):
         check_paging_core(selectable=selectable, s=s)
 
 
+def test_core_order_by_enum(dburl):
+    with S(dburl, echo=ECHO) as s:
+        selectable = select([Light.id, Light.colour]).order_by(
+            Light.colour, Light.intensity, Light.id
+        )
+        check_paging_core(selectable=selectable, s=s)
+
+
 def test_core_result_processor(dburl):
     with S(dburl, echo=ECHO) as s:
         selectable = select([Light.id, Light.myint]).order_by(Light.intensity, Light.id)
+        check_paging_core(selectable=selectable, s=s)
+
+
+def test_core_order_by_result_processor(dburl):
+    with S(dburl, echo=ECHO) as s:
+        selectable = select([Light.id, Light.myint]).order_by(Light.myint, Light.id)
         check_paging_core(selectable=selectable, s=s)
 
 
