@@ -1,4 +1,5 @@
 """Methods for messing with the internals of SQLAlchemy >1.3 results."""
+from sqlalchemy.engine.result import ScalarResult
 
 
 def orm_query_keys(query):
@@ -9,15 +10,17 @@ def orm_query_keys(query):
 
 def orm_result_type(query):
     """Return the type constructor for rows that would be returned by a given
-    query; or the identity function for queries that return a single entity.
+    query; or the identity function for queries that return a single entity
+    rather than rows.
 
     :param query: The query to inspect.
     :type query: :class:`sqlalchemy.orm.query.Query`.
     :returns: either a named tuple type or the identity."""
 
-    if query.is_single_entity:
+    _iter = query._iter()
+    if isinstance(_iter, ScalarResult):
         return lambda x: x[0]
-    return query._iter()._row_getter
+    return _iter._row_getter
 
 
 def orm_coerce_row(row, extra_columns, result_type):
