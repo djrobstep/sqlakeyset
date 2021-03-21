@@ -1,7 +1,7 @@
 sqlakeyset: offset-free paging for sqlalchemy
 =============================================
 
-**Notice:** In accordance with Python 2's rapidly-approaching end-of-life date, we've stopped supporting Python 2. If you really need it, the latest version to support Python 2 is 0.1.1559103842, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
+**Notice:** In accordance with Python 2's end-of-life, we've stopped supporting Python versions earlier than 3.4. If you really need it, the latest version to support Python 2 is 0.1.1559103842, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
 
 .. image:: https://circleci.com/gh/djrobstep/sqlakeyset.svg?style=svg
     :target: https://circleci.com/gh/djrobstep/sqlakeyset
@@ -9,7 +9,7 @@ sqlakeyset: offset-free paging for sqlalchemy
 
 This library implements keyset-based paging for SQLAlchemy (both ORM and core).
 
-This library has been tested with PostgreSQL and MariaDB/MySQL. It should work with other SQLAlchemy-supported databases too provided they support ``row(`` syntax (see below).
+This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with other SQLAlchemy-supported databases too, provided they implement lexicographic tuple comparison; e.g. `(1,2) > (0,4)` should be true.
 
 Background
 ----------
@@ -71,9 +71,9 @@ Page objects
 
 Paged items/rows are returned in a Page object, which is a vanilla python list, except with an attached ``Paging`` object with the paging information.
 
-Properties such as `next` and `previous` return a 2-tuple containing the ordering key for the row, and a boolean to specify if the direction is forwards or backwards.
+Properties such as `next` and `previous` return a pair containing the ordering key for the row, and a boolean to specify if the direction is forwards or backwards. We refer to these pairs as *markers*.
 
-In our above example, the 2-tuple specifying the second page might look like:
+In our above example, the marker specifying the second page might look like:
 
 .. code-block:: python
 
@@ -102,7 +102,7 @@ And the last page:
 Keyset Serialization
 --------------------
 
-You will probably want to turn these keysets/bookmarks into strings for passing around. ``sqlakeyset`` includes code to do this. To get a serialized bookmark, just add ``bookmark_`` to the name of the property that holds the keyset you want.
+You will probably want to turn these markers into strings for passing around. ``sqlakeyset`` includes code to do this, and calls the resulting strings *bookmarks*. To get a serialized bookmark, just add ``bookmark_`` to the name of the property that holds the keyset you want.
 
 Most commonly you'll want ``next`` and ``previous``, so:
 
@@ -140,7 +140,7 @@ Limitations
 Documentation
 -------------
 
-``sqlakeyset`` is in early alpha and documentation other than this README is scarce so far. We are working on remedying this. Watch this space.
+Other than this README, there is some basic sphinx documentation, which you can build yourself with e.g. ``make -C doc html``. Hopefully this will be available more conveniently soon - watch this space.
 
 
 Installation
