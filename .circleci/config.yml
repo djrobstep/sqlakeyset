@@ -56,14 +56,14 @@ jobs:
           name: Test with SQLAlchemy 1.3
           command: |
             . ~/.venv/bin/activate
-            pip install sqlalchemy~=1.3
+            pip install 'sqlalchemy>=1.3,<1.4'
             make test
       - run:
-          name: Test with SQLAlchemy 1.4 beta
+          name: Test with SQLAlchemy 1.4
           command: |
             . ~/.venv/bin/activate
             # sqla14-compatible sqlbag isn't on PyPI yet
-            pip install --upgrade sqlalchemy~=1.4b "git+https://github.com/djrobstep/sqlbag.git@f4759318710ef33dc041710a6ff38f03d3c39b56"
+            pip install --upgrade sqlalchemy~=1.4 "git+https://github.com/djrobstep/sqlbag.git@f4759318710ef33dc041710a6ff38f03d3c39b56"
             make test
       - store_test_results:
           path: test-reports
