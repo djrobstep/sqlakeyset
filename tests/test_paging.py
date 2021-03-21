@@ -248,6 +248,7 @@ def _dburl(request):
 SUPPORTED_ENGINES = ["sqlite", "postgresql", "mysql"]
 
 dburl = pytest.fixture(params=SUPPORTED_ENGINES)(_dburl)
+no_mysql_dburl = pytest.fixture(params=["sqlite", "postgresql"])(_dburl)
 pg_only_dburl = pytest.fixture(params=["postgresql"])(_dburl)
 
 
@@ -632,9 +633,14 @@ def test_core_enum(dburl):
         check_paging_core(selectable=selectable, s=s)
 
 
-def test_core_order_by_enum(dburl):
-    with S(dburl, echo=ECHO) as s:
-        selectable = select([Light.id]).order_by(
+# MySQL sorts enums by index in ORDER BY clauses, but treats them as
+# strings in ROW() constructors, and thus compares them by their labels;
+# so we don't test ordering by enums in MySQL.  If users want to do
+# this, they need to ensure that their enums are defined in alphabetical
+# order (as recommended by the MySQL documentation).
+def test_core_order_by_enum(no_mysql_dburl):
+    with S(no_mysql_dburl, echo=ECHO) as s:
+        selectable = select([Light.id, Light.colour]).order_by(
             Light.colour, Light.intensity, Light.id
         )
         check_paging_core(selectable=selectable, s=s)
@@ -658,8 +664,8 @@ def test_orm_enum(dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_order_by_enum(dburl):
-    with S(dburl, echo=ECHO) as s:
+def test_orm_order_by_enum(no_mysql_dburl):
+    with S(no_mysql_dburl, echo=ECHO) as s:
         q = s.query(Light.id).order_by(Light.colour, Light.intensity, Light.id)
         check_paging_orm(q=q)
 
