@@ -2,7 +2,7 @@
 
 from functools import partial
 
-from sqlalchemy import tuple_
+from sqlalchemy import tuple_, and_, or_
 
 from .columns import find_order_key, parse_ob_clause
 from .results import Page, Paging, unserialize_bookmark
@@ -44,6 +44,9 @@ def where_condition_for_page(ordering_columns, place, dialect):
 
     if len(row) == 1:
         condition = row[0] > place_row[0]
+    elif dialect.name.lower() not in ('postgresql', 'mysql', 'sqlite'):
+        condition = or_(*[tuple_(and_(*[row[index] == place_row[index] for index in range(or_count)],
+                                      row[or_count] > place_row[or_count])) for or_count in range(len(row))])
     else:
         condition = tuple_(*row) > tuple_(*place_row)
     return condition
