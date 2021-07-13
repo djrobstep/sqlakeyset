@@ -717,3 +717,17 @@ def test_warn_when_sorting_by_nullable(dburl):
         with S(dburl, echo=ECHO) as s:
             q = s.query(Book).order_by(Book.a, Book.id)
             get_page(q, per_page=10, page=(None, False))
+
+
+def test_orm_custom_session_bind(dburl):
+    spec = [desc(Book.b), Book.d, Book.id]
+
+    with S(dburl, echo=ECHO) as s:
+        # this is a hack but it correctly emulates a session with a custom
+        # implementation of get_bind() and no .bind attribute:
+        s._custom_bind = s.bind
+        delattr(s, 'bind')
+        s.get_bind = lambda *a, **k: s._custom_bind
+
+        q = s.query(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
+        check_paging_orm(q=q)
