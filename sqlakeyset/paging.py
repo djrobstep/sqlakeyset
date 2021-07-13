@@ -77,8 +77,16 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
         column_descriptions = q.column_descriptions
         keys = orm_query_keys(q)
     else:
+        if not s:
+            raise ValueError("Cannot page core selectable without a session/connection")
         selectable = q
         column_descriptions = q._raw_columns
+    try:
+        # for sessions, dialect is available via the bind:
+        dialect = s.get_bind().dialect
+    except Exception:
+        # connections have a direct .dialect
+        dialect = s.dialect
 
     order_cols = parse_ob_clause(selectable)
     if backwards:
@@ -100,7 +108,6 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
             q = q.column(col)
 
     if place:
-        dialect = getattr(s, "bind", s).dialect
         condition = where_condition_for_page(order_cols, place, dialect)
         # For aggregate queries, paging condition is applied *after*
         # aggregation. In SQL this means we need to use HAVING instead of
