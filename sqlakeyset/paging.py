@@ -83,7 +83,7 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
         column_descriptions = q._raw_columns
     try:
         # for sessions, dialect is available via the bind:
-        dialect = s.get_bind().dialect
+        dialect = s.get_bind(clause=getattr(q, 'statement', q)).dialect
     except Exception:
         # connections have a direct .dialect
         dialect = s.dialect
