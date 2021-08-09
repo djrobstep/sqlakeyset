@@ -5,6 +5,7 @@ from packaging import version
 
 import pytest
 import sqlalchemy
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy import (
     select,
     String,
@@ -731,3 +732,23 @@ def test_orm_custom_session_bind(dburl):
 
         q = s.query(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
         check_paging_orm(q=q)
+
+
+def test_multiple_engines(dburl, joined_inheritance_dburl):
+
+    eng = sqlalchemy.create_engine(dburl)
+    eng2 = sqlalchemy.create_engine(joined_inheritance_dburl)
+    session_factory = sessionmaker()
+    Base.metadata.bind = eng
+    JoinedInheritanceBase.metadata.bind = eng2
+
+    s = session_factory()
+
+    spec = [desc(Book.b), Book.d, Book.id]
+    q = s.query(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
+
+    check_paging_orm(q=q)
+
+    s.close()
+    Base.metadata.bind = None
+    JoinedInheritanceBase.metadata.bind = None
