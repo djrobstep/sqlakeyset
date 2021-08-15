@@ -4,7 +4,7 @@ from sqlalchemy.engine.result import result_tuple
 def orm_query_keys(query):
     """Given a SQLAlchemy ORM query, extract the list of column keys expected
     in the result."""
-    return [c['name'] for c in query.column_descriptions]
+    return [c["name"] for c in query.column_descriptions]
 
 
 def _create_result_tuple(compile_state):

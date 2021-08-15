@@ -78,6 +78,7 @@ class DoubleResultProcessing(Exception):
 
 class GuardDoubleResultProcessing(TypeDecorator):
     impl = Integer
+    cache_ok = True
 
     def process_result_value(self, value, dialect):
         if isinstance(value, MyInteger):
@@ -727,7 +728,7 @@ def test_orm_custom_session_bind(dburl):
         # this is a hack but it correctly emulates a session with a custom
         # implementation of get_bind() and no .bind attribute:
         s._custom_bind = s.bind
-        delattr(s, 'bind')
+        delattr(s, "bind")
         s.get_bind = lambda *a, **k: s._custom_bind
 
         q = s.query(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
