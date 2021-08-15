@@ -12,6 +12,9 @@ from sqlalchemy.sql.expression import ClauseList, ColumnElement, Label
 from sqlalchemy.sql.operators import asc_op, desc_op, nullsfirst_op, nullslast_op
 
 from .sqla import order_by_clauses
+from .constants import ORDER_COL_PREFIX
+
+# TODO: user *could* collide with this!
 
 _LABELLED = (Label, _label_reference)
 _ORDER_MODIFIERS = (asc_op, desc_op, nullsfirst_op, nullslast_op)
@@ -322,7 +325,7 @@ class AppendedColumn(MappedOrderColumn):
         super().__init__(oc)
         if not name:
             AppendedColumn._counter += 1
-            name = "_sqlakeyset_oc_{}".format(AppendedColumn._counter)
+            name = "{}{}".format(ORDER_COL_PREFIX, AppendedColumn._counter)
         self.name = name
         self.extra_column = self.oc.comparable_value.label(self.name)
 

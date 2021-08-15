@@ -1,5 +1,9 @@
 """Methods for messing with the internals of SQLAlchemy >1.3 results."""
 from sqlalchemy.engine.result import result_tuple
+from sqlalchemy.engine.row import Row as _Row, LegacyRow as _LegacyRow
+
+from .constants import ORDER_COL_PREFIX
+
 
 def orm_query_keys(query):
     """Given a SQLAlchemy ORM query, extract the list of column keys expected
@@ -54,8 +58,22 @@ def orm_coerce_row(row, extra_columns, result_type):
 def core_result_type(selectable, s):
     """Given a SQLAlchemy Core selectable and a connection/session, get the
     type constructor for the result row type."""
-    result_proxy = s.execute(selectable.limit(0))
-    return result_proxy._row_getter
+    # Unused in sqlalchemy 1.4: see core_coerce_row implementation
+    return None
+
+
+def result_keys(result):
+    return [k for k in result.keys if not k.startswith(ORDER_COL_PREFIX)]
+
+
+class Row(_Row):
+    def keys(self):
+        return result_keys(self._parent)
+
+
+class LegacyRow(_Row):
+    def keys(self):
+        return result_keys(self._parent)
 
 
 def core_coerce_row(row, extra_columns, result_type):
@@ -64,7 +82,23 @@ def core_coerce_row(row, extra_columns, result_type):
     if not extra_columns:
         return row
     N = len(row) - len(extra_columns)
-    return result_type(row[:N])
+
+    if isinstance(row, _LegacyRow):
+        cls = LegacyRow
+    else:
+        cls = Row
+
+    return cls(
+        row._parent,
+        None,  # Processors are applied immediately in sqla1.4+
+        {  # Strip out added OCs from the keymap:
+            k: v
+            for k, v in row._keymap.items()
+            if not v[1].startswith(ORDER_COL_PREFIX)
+        },
+        row._key_style,
+        row._data[:N],
+    )
 
 
 def orm_to_selectable(q):
