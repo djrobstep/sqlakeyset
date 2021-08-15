@@ -10,6 +10,7 @@ from .serial import InvalidPage
 from .sqla import (
     core_coerce_row,
     core_result_type,
+    get_bind,
     group_by_clauses,
     orm_coerce_row,
     orm_query_keys,
@@ -81,12 +82,8 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
             raise ValueError("Cannot page core selectable without a session/connection")
         selectable = q
         column_descriptions = q._raw_columns
-    try:
-        # for sessions, dialect is available via the bind:
-        dialect = s.get_bind(clause=getattr(q, 'statement', q)).dialect
-    except Exception:
-        # connections have a direct .dialect
-        dialect = s.dialect
+
+    dialect = get_bind(q, s).dialect
 
     order_cols = parse_ob_clause(selectable)
     if backwards:
