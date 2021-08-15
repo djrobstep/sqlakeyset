@@ -1,15 +1,23 @@
 sqlakeyset: offset-free paging for sqlalchemy
 =============================================
 
-**Notice:** In accordance with Python 2's end-of-life, we've stopped supporting Python versions earlier than 3.4. If you really need it, the latest version to support Python 2 is 0.1.1559103842, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
-
-.. image:: https://circleci.com/gh/djrobstep/sqlakeyset.svg?style=svg
+.. image:: https://img.shields.io/circleci/build/gh/djrobstep/sqlakeyset?label=tests
+    :alt: Tests
     :target: https://circleci.com/gh/djrobstep/sqlakeyset
+    
+.. image:: https://img.shields.io/pypi/v/sqlakeyset
+    :alt: PyPI
+    :target: https://pypi.org/project/sqlakeyset/
+    
+.. image:: https://img.shields.io/conda/vn/conda-forge/sqlakeyset.svg
+    :alt: conda-forge
+    :target: https://anaconda.org/conda-forge/sqlakeyset
 
-
-This library implements keyset-based paging for SQLAlchemy (both ORM and core).
+sqlakeyset implements keyset-based paging for SQLAlchemy (both ORM and core).
 
 This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with other SQLAlchemy-supported databases too, provided they implement lexicographic tuple comparison; e.g. `(1,2) > (0,4)` should be true.
+
+**Notice:** In accordance with Python 2's end-of-life, we've stopped supporting Python versions earlier than 3.4. If you really need it, the latest version to support Python 2 is 0.1.1559103842, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
 
 Background
 ----------
