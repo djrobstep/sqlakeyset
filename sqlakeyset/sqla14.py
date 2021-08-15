@@ -1,7 +1,5 @@
 """Methods for messing with the internals of SQLAlchemy >1.3 results."""
 from sqlalchemy.engine.result import result_tuple
-from sqlalchemy import util
-
 
 def orm_query_keys(query):
     """Given a SQLAlchemy ORM query, extract the list of column keys expected
@@ -9,21 +7,24 @@ def orm_query_keys(query):
     return [c['name'] for c in query.column_descriptions]
 
 
-def _create_result_tuple(query):
+def _create_result_tuple(compile_state):
     """Create a `_row_getter` function to use as `result_type`"""
-    # This is copied from the internals of sqlalchemy.orm.loading
-    querycontext = util.preloaded.orm_context
-
-    ctx = querycontext.ORMSelectCompileState._create_entities_collection(
-        query, legacy=False
-    )
-
-    keys = [ent._label_name for ent in ctx._entities]
+    # This is adapted from the internals of sqlalchemy.orm.loading
+    keys = [ent._label_name for ent in compile_state._entities]
 
     keyed_tuple = result_tuple(
-        keys, [ent._extra_entities for ent in ctx._entities]
+        keys, [ent._extra_entities for ent in compile_state._entities]
     )
     return keyed_tuple
+
+
+def _is_single_entity(compile_state, query_context):
+    # This is copied from the internals of sqlalchemy.orm.loading
+    return (
+        not query_context.load_options._only_return_tuples
+        and len(compile_state._entities) == 1
+        and compile_state._entities[0].supports_single_entity
+    )
 
 
 def orm_result_type(query):
@@ -35,7 +36,10 @@ def orm_result_type(query):
     :type query: :class:`sqlalchemy.orm.query.Query`.
     :returns: either a named tuple type or the identity."""
 
-    return _create_result_tuple(query)
+    state = query._compile_state()
+    if _is_single_entity(state, query._compile_context()):
+        return lambda x: x[0]
+    return _create_result_tuple(state)
 
 
 def orm_coerce_row(row, extra_columns, result_type):
@@ -50,7 +54,8 @@ def orm_coerce_row(row, extra_columns, result_type):
 def core_result_type(selectable, s):
     """Given a SQLAlchemy Core selectable and a connection/session, get the
     type constructor for the result row type."""
-    return _create_result_tuple(selectable)
+    result_proxy = s.execute(selectable.limit(0))
+    return result_proxy._row_getter
 
 
 def core_coerce_row(row, extra_columns, result_type):
