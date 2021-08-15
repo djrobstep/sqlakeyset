@@ -41,4 +41,4 @@ nosetests.xml
 
 .vim
 poetry.lock
-/test-results/
+/test-reports
