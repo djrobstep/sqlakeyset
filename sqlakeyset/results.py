@@ -1,75 +1,76 @@
 """Paging data structures and bookmark handling."""
-from __future__ import unicode_literals
-
+import base64
 import csv
+from typing import Any, Optional
 
-from .serial import Serial, BadBookmark
+from sqlakeyset.serial import BadBookmark, Serial
 
-SERIALIZER_SETTINGS = dict(
-    lineterminator=str(""),
-    delimiter=str("~"),
-    doublequote=False,
-    escapechar=str("\\"),
-    quoting=csv.QUOTE_NONE,
-)
+SERIALIZER_SETTINGS = {
+    "lineterminator": "",
+    "delimiter": "~",
+    "doublequote": False,
+    "escapechar": "\\",
+    "quoting": csv.QUOTE_NONE,
+}
 
 s = Serial(**SERIALIZER_SETTINGS)
 
 
-def custom_bookmark_type(type, code, deserializer=None, serializer=None):
-    """Register (de)serializers for bookmarks to use for a custom type.
-
-    :param type: Python type to register.
-    :paramtype type: type
-    :param code: A short alphabetic code to use to identify this type in serialized bookmarks.
-    :paramtype code: str
-    :param serializer: A function mapping `type` values to strings. Default is
-        `str`.
-    :param deserializer: Inverse for `serializer`. Default is the `type`
-        constructor."""
-    s.register_type(type, code, deserializer=deserializer, serializer=serializer)
 
 
-def serialize_bookmark(marker):
-    """Serialize a place marker to a bookmark string.
+def serialize_bookmark(marker: tuple[tuple[Any], bool]) -> str:
+    """
+    Serialize the given bookmark.
 
-    :param marker: A pair ``(keyset, backwards)``, where ``keyset`` is a tuple
-        containing values of the ordering columns, and `backwards` denotes the
-        paging direction.
-    :returns: A CSV-like string using ``~`` as a separator."""
+    Args:
+        marker: A pair `(keyset, backwards)`, where ``keyset`` is a tuple containing values of the ordering columns,
+                and `backwards` denotes the paging direction.
+
+    Returns:
+        A serialized string.
+    """
     x, backwards = marker
     ss = s.serialize_values(x)
     direction = "<" if backwards else ">"
-    return direction + ss
+    full_string = direction + ss
+    return base64.b64encode(full_string.encode()).decode()
 
 
-def unserialize_bookmark(bookmark):
-    """Deserialize a bookmark string to a place marker.
+def unserialize_bookmark(bookmark: Optional[str]) -> tuple[Optional[tuple[Any]], bool]:
+    """
+    Deserialize a bookmark string to a place marker.
 
-    :param bookmark: A string in the format produced by
-        :func:`serialize_bookmark`.
-    :returns: A marker pair as described in :func:`serialize_bookmark`.
+    Args:
+        bookmark: A string in the format produced by :func:`serialize_bookmark`.
+
+    Returns:
+        A marker pair as described in :func:`serialize_bookmark`.
+
+    Raises:
+        BadBookmark: The bookmark is not a valid.
     """
     if not bookmark:
         return None, False
 
-    direction = bookmark[0]
+    decoded = base64.b64decode(bookmark.encode()).decode()
+
+    direction = decoded[0]
 
     if direction not in (">", "<"):
-        raise BadBookmark(
-            "Malformed bookmark string: doesn't start with a direction marker"
-        )
+        raise BadBookmark("Malformed bookmark string: doesn't start with a direction marker")
 
     backwards = direction == "<"
-    cells = s.unserialize_values(bookmark[1:])  # might raise BadBookmark
+    cells = s.unserialize_values(decoded[1:])  # might raise BadBookmark
     return cells, backwards
 
 
 class Page(list):
-    """A :class:`list` of result rows with access to paging information and
-    some convenience methods."""
+    """
+    A :class:`list` of result rows with access to paging information and
+    some convenience methods.
+    """
 
-    def __init__(self, iterable, paging=None, keys=None):
+    def __init__(self, iterable, paging: "Paging", keys=None):
         super().__init__(iterable)
         self.paging = paging
         """The :class:`Paging` information describing how this page relates to the
@@ -77,32 +78,43 @@ class Page(list):
         self._keys = keys
 
     def scalar(self):
-        """Assuming paging was called with ``per_page=1`` and a single-column
-        query, return the single value."""
+        """
+        Assuming paging was called with ``per_page=1`` and a single-column
+        query, return the single value.
+        """
         return self.one()[0]
 
     def one(self):
-        """Assuming paging was called with ``per_page=1``, return the single
-        row on this page."""
+        """
+        Assuming paging was called with ``per_page=1``, return the single
+        row on this page.
+
+        Raises:
+            Exception: ???
+        """
         c = len(self)
 
         if c < 1:
-            raise RuntimeError("tried to select one but zero rows returned")
+            raise Exception("tried to select one but zero rows returned")
         elif c > 1:
-            raise RuntimeError("too many rows returned")
+            raise Exception("too many rows returned")
         else:
             return self[0]
 
     def keys(self):
-        """Equivalent of :meth:`sqlalchemy.engine.ResultProxy.keys`: returns
-        the list of string keys for rows."""
+        """
+        Equivalent of :meth:`sqlalchemy.engine.ResultProxy.keys`: returns
+        the list of string keys for rows.
+        """
         return self._keys
 
 
 class Paging:
-    """Object with paging information. Most properties return a page marker.
+    """
+    Object with paging information. Most properties return a page marker.
     Prefix these properties with ``bookmark_`` to get the serialized version of
-    that page marker."""
+    that page marker.
+    """
 
     def __init__(
         self,
@@ -158,14 +170,18 @@ class Paging:
 
     @property
     def has_next(self):
-        """Boolean flagging whether there are more rows after this page (in the
-        original query order)."""
+        """
+        Boolean flagging whether there are more rows after this page (in the
+        original query order).
+        """
         return bool(self.beyond)
 
     @property
     def has_previous(self):
-        """Boolean flagging whether there are more rows before this page (in the
-        original query order)."""
+        """
+        Boolean flagging whether there are more rows before this page (in the
+        original query order).
+        """
         return bool(self.before)
 
     @property
@@ -198,8 +214,10 @@ class Paging:
 
     @property
     def current_opposite(self):
-        """Marker for the current page in the opposite of the current
-        paging direction."""
+        """
+        Marker for the current page in the opposite of the current
+        paging direction.
+        """
         if self.backwards:
             return self.current_forwards
         else:
@@ -215,8 +233,10 @@ class Paging:
 
     @property
     def has_further(self):
-        """Boolean flagging whether there are more rows before this page in the
-        current paging direction."""
+        """
+        Boolean flagging whether there are more rows before this page in the
+        current paging direction.
+        """
         if self.backwards:
             return self.has_previous
         else:
@@ -224,14 +244,16 @@ class Paging:
 
     @property
     def is_full(self):
-        """Boolean flagging whether this page contains as many rows as were
-        requested in ``per_page``."""
+        """
+        Boolean flagging whether this page contains as many rows as were
+        requested in ``per_page``.
+        """
         return len(self.rows) == self.per_page
 
     def __getattr__(self, name):
-        PREFIX = "bookmark_"
-        if name.startswith(PREFIX):
-            _, attname = name.split(PREFIX, 1)
+        prefix = "bookmark_"
+        if name.startswith(prefix):
+            _, attname = name.split(prefix, 1)
             x = getattr(self, attname)
             return serialize_bookmark(x)
 

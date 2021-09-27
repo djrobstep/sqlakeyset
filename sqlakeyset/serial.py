@@ -1,29 +1,31 @@
 """Bookmark (de)serialization logic."""
-from __future__ import unicode_literals
 
-import decimal
-import datetime
 import base64
-import uuid
-import dateutil.parser
 import csv
+import datetime
+import decimal
+import uuid
 from io import StringIO
 
+import dateutil.parser
 
-class InvalidPage(ValueError):
-    """An invalid page marker (in either tuple or bookmark string form) was
-    provided to a paging method."""
+
+class InvalidPage(Exception):
+    """
+    An invalid page marker (in either tuple or bookmark string form) was
+    provided to a paging method.
+    """
 
 
 class BadBookmark(InvalidPage):
     """A bookmark string failed to parse"""
 
 
-class PageSerializationError(ValueError):
+class PageSerializationError(Exception):
     """Generic serialization error."""
 
 
-class UnregisteredType(NotImplementedError):
+class UnregisteredType(Exception):
     """An unregistered type was encountered when serializing a bookmark."""
 
 
@@ -77,7 +79,7 @@ BUILTINS = {
 BUILTINS_INV = {v: k for k, v in BUILTINS.items()}
 
 
-class Serial(object):
+class Serial:
     def __init__(self, *args, **kwargs):
         self.kwargs = kwargs
         self.serializers = {}
@@ -129,11 +131,9 @@ class Serial(object):
             try:
                 c, x = serializer(x)
             except Exception as e:
-                raise PageSerializationError(
-                    "Custom bookmark serializer " "encountered error"
-                ) from e
+                raise PageSerializationError("Custom bookmark serializer " "encountered error") from e
             else:
-                return "{}:{}".format(c, x)
+                return f"{c}:{x}"
 
         try:
             return BUILTINS_INV[x]
@@ -158,11 +158,9 @@ class Serial(object):
             try:
                 return deserializer(v)
             except Exception as e:
-                raise BadBookmark(
-                    "Custom bookmark deserializer" "encountered error"
-                ) from e
+                raise BadBookmark("Custom bookmark deserializer" "encountered error") from e
 
         try:
             return BUILTINS[c]
         except KeyError:
-            raise BadBookmark("unrecognized value {}".format(x))
+            raise BadBookmark(f"unrecognized value {x}")
