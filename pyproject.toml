@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "sqlakeyset"
 version = "1.0"
-authors = [ "Robert Lechte <robertlechte@gmail.com>",]
+authors = [ "Robert Lechte <robertlechte@gmail.com>", "Anthony Carapetis <anthony.carapetis@gmail.com>" ]
 license = "Unlicense"
 readme = "README.rst"
 description = "offset-free paging for sqlalchemy"
