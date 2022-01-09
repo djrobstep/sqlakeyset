@@ -20,6 +20,36 @@ from .sqla import (
 
 PER_PAGE_DEFAULT = 10
 
+# Dialects built-in to sqlalchemy that support native tuple comparison.
+# Other custom dialects may support this too, but we err on the side of
+# breaking less.
+SUPPORTS_NATIVE_TUPLE_COMPARISON = ('postgresql', 'mysql', 'sqlite')
+
+
+def compare_tuples(lesser, greater, dialect=None):
+    """Given two sequences of equal length (whose entries can be SQL clauses or
+    simple values), create an SQL clause defining the lexicographic tuple
+    comparison ``lesser < greater``.
+
+    If ``dialect`` is provided and is an sqlalchemy SQL dialect supporting
+    native tuple comparison, the SQL emitted is a native tuple comparison.
+    Otherwise it is built manually using OR and AND."""
+    if len(lesser) != len(greater):
+        raise ValueError("Tuples must have same length to be compared!")
+    if len(lesser) == 1:
+        return lesser[0] < greater[0]
+    if dialect is not None and dialect.name.lower() in SUPPORTS_NATIVE_TUPLE_COMPARISON:
+        return tuple_(*lesser) < tuple_(*greater)
+    return or_(
+        *[
+            and_(
+                *[lesser[index] == greater[index] for index in range(eq_depth)],
+                lesser[eq_depth] < greater[eq_depth]
+            )
+            for eq_depth in range(len(lesser))
+        ]
+    )
+
 
 def where_condition_for_page(ordering_columns, place, dialect):
     """Construct the SQL condition required to restrict a query to the desired
@@ -42,14 +72,7 @@ def where_condition_for_page(ordering_columns, place, dialect):
     swapped = [c.pair_for_comparison(value, dialect) for c, value in zipped]
     row, place_row = zip(*swapped)
 
-    if len(row) == 1:
-        condition = row[0] > place_row[0]
-    elif dialect.name.lower() not in ('postgresql', 'mysql', 'sqlite'):
-        condition = or_(*[tuple_(and_(*[row[index] == place_row[index] for index in range(or_count)],
-                                      row[or_count] > place_row[or_count])) for or_count in range(len(row))])
-    else:
-        condition = tuple_(*row) > tuple_(*place_row)
-    return condition
+    return compare_tuples(greater=row, lesser=place_row, dialect=dialect)
 
 
 def orm_page_from_rows(
