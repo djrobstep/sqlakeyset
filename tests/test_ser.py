@@ -8,8 +8,8 @@ import datetime
 import pytz
 
 from pytest import raises
+from sqlakeyset.results import s
 from sqlakeyset.serial import (
-    Serial,
     PageSerializationError,
     BadBookmark,
     UnregisteredType,
@@ -17,16 +17,6 @@ from sqlakeyset.serial import (
 )
 
 utc = pytz.utc
-
-DEFAULTS = dict(
-    lineterminator=str(""),
-    delimiter=str("~"),
-    doublequote=False,
-    escapechar=str("\\"),
-    quoting=csv.QUOTE_NONE,
-)
-
-s = Serial(**DEFAULTS)
 
 
 class Z(str):
@@ -98,6 +88,8 @@ def test_serial():
     assert s.serialize_value(5.0) == "f:5.0"
     assert s.serialize_value(decimal.Decimal("5.5")) == "n:5.5"
     assert s.serialize_value("abc") == "s:abc"
+    assert s.serialize_value("hello\nworld") == r"s:hello\nworld"
+    assert s.serialize_value("hello\\nworld") == r"s:hello\\nworld"
     assert s.serialize_value(b"abc") == "b:YWJj"
     assert s.serialize_value(b"abc") == "b:YWJj"
     assert s.serialize_value(Z("abc")) == "z:cba"
@@ -134,6 +126,29 @@ def test_unserial():
     twoway(Z("abc"))
     twoway(Y("abc"))
     twoway(uuid.UUID("939d4cc9-830d-4cca-bd74-3ec3d541a9b3"))
+    twoway("hello\nworld")
+    twoway("hello\\nworld")
 
     with raises(BadBookmark):
         s.unserialize_value("zzzz:abc")
+
+
+def test_serial_row():
+    assert s.serialize_values([None, True, False]) == "x~true~false"
+    assert s.serialize_values([5, 5.0]) == "i:5~f:5.0"
+    assert s.serialize_values(["hello", "world"]) == "s:hello~s:world"
+    # The backslash in \n will be doubly-escaped in full row serializations:
+    #  Once (by us) to handle newlines
+    #  A second time (by csv.writer) to handle delimiters
+    assert s.serialize_values(["hello\nworld"]) == r"s:hello\\nworld"
+    assert s.serialize_values(["hello\\n\nworld"]) == r"s:hello\\\\n\\nworld"
+
+
+def test_unserial_row():
+    def twoway(x):
+        assert s.unserialize_values(s.serialize_values(x)) == x
+
+    twoway([None, True])
+    twoway(["hello", "world", 13])
+    twoway(["hello\nworld", 13])
+    twoway(["hello\\nworld", 13])

@@ -27,7 +27,9 @@ def custom_bookmark_type(type, code, deserializer=None, serializer=None):
         `str`.
     :param deserializer: Inverse for `serializer`. Default is the `type`
         constructor."""
-    s.register_type(type, code, deserializer=deserializer, serializer=serializer)
+    s.register_type(
+        type, code, deserializer=deserializer, serializer=serializer
+    )
 
 
 def serialize_bookmark(marker):
