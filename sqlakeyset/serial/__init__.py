@@ -5,6 +5,8 @@ from .serial import (
     PageSerializationError,
     Serial,
     UnregisteredType,
+    escape,
+    unescape,
 )
 
 __all__ = [
@@ -14,4 +16,6 @@ __all__ = [
     "PageSerializationError",
     "Serial",
     "UnregisteredType",
+    "escape",
+    "unescape",
 ]

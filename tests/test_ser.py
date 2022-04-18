@@ -14,6 +14,8 @@ from sqlakeyset.serial import (
     BadBookmark,
     UnregisteredType,
     ConfigurationError,
+    escape,
+    unescape,
 )
 
 utc = pytz.utc
@@ -61,6 +63,20 @@ def test_ser():
 
     assert s.split(s.join(STRINGS)) == STRINGS
     assert s.split(s.join(NAUGHTY)) == NAUGHTY
+
+
+def test_escape():
+    assert escape("hello world") == "hello world"
+    assert escape("hello\nworld") == r"hello\nworld"
+    assert escape(r"hello\nworld") == r"hello\\nworld"
+    assert escape("hello\\n\nworld\n") == r"hello\\n\nworld\n"
+
+
+def test_unescape():
+    assert "hello world" == unescape("hello world")
+    assert "hello\nworld" == unescape(r"hello\nworld")
+    assert r"hello\nworld" == unescape(r"hello\\nworld")
+    assert "hello\\n\nworld\n" == unescape(r"hello\\n\nworld\n")
 
 
 def test_register_type_twice():

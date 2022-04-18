@@ -23,7 +23,7 @@ PER_PAGE_DEFAULT = 10
 # Dialects built-in to sqlalchemy that support native tuple comparison.
 # Other custom dialects may support this too, but we err on the side of
 # breaking less.
-SUPPORTS_NATIVE_TUPLE_COMPARISON = ('postgresql', 'mysql', 'sqlite')
+SUPPORTS_NATIVE_TUPLE_COMPARISON = ("postgresql", "mysql", "sqlite")
 
 
 def compare_tuples(lesser, greater, dialect=None):

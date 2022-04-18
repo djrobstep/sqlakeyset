@@ -57,8 +57,20 @@ def bindecode(x):
     return base64.b64decode(x.encode("utf-8"))
 
 
+def escape(x):
+    """Python's CSV writer/reader leave newlines unchanged, so records with
+    strings containing newlines are split over multiple lines. This is
+    undesirable, so we manually escape newlines."""
+    return r"\n".join(x.replace(r"\n", r"\\n") for x in x.split("\n"))
+
+
+def unescape(x):
+    """Inverse of escape."""
+    return r"\n".join(x.replace(r"\n", "\n") for x in x.split(r"\\n"))
+
+
 TYPES = [
-    (str, "s"),
+    (str, "s", unescape, escape),
     (int, "i"),
     (float, "f"),
     (bytes, "b", bindecode, binencode),
