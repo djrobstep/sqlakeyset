@@ -247,11 +247,41 @@ class Paging:
         """Get the bookmark for item at the given row index."""
         return serialize_bookmark(self.get_marker_at(i))
 
-    def __getattr__(self, name):
-        PREFIX = "bookmark_"
-        if name.startswith(PREFIX):
-            _, attname = name.split(PREFIX, 1)
-            x = getattr(self, attname)
-            return serialize_bookmark(x)
 
-        raise AttributeError
+    # The remaining properties are just convenient shorthands to avoid manually
+    # calling serialize_bookmark.
+    @property
+    def bookmark_next(self):
+        """Bookmark for the next page (in the original query order)."""
+        return serialize_bookmark(self.next)
+
+    @property
+    def bookmark_previous(self):
+        """Bookmark for the previous page (in the original query order)."""
+        return serialize_bookmark(self.previous)
+
+    @property
+    def bookmark_current_forwards(self):
+        """Bookmark for the current page in forwards direction."""
+        return serialize_bookmark(self.current_forwards)
+
+    @property
+    def bookmark_current_backwards(self):
+        """Bookmark for the current page in backwards direction."""
+        return serialize_bookmark(self.current_backwards)
+
+    @property
+    def bookmark_current(self):
+        """Bookmark for the current page in the current paging direction."""
+        return serialize_bookmark(self.current)
+
+    @property
+    def bookmark_current_opposite(self):
+        """Bookmark for the current page in the opposite of the current
+        paging direction."""
+        return serialize_bookmark(self.current_opposite)
+
+    @property
+    def bookmark_further(self):
+        """Bookmark for the following page in the current paging direction."""
+        return serialize_bookmark(self.further)
