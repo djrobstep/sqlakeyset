@@ -134,7 +134,7 @@ def test_paging_objects1():
 
     ob = [OC(x) for x in ["id", "b"]]
 
-    p = Paging(T1, 10, ob, backwards=False, current_marker=None, get_marker=getitem)
+    p = Paging(T1, 10, ob, backwards=False, current_marker=None, get_keys_from=getitem)
     assert p.next == (None, False)
     assert p.further == (None, False)
     assert p.previous == (None, True)
@@ -145,7 +145,7 @@ def test_paging_objects1():
 def test_paging_object2_per_page_3():
     ob = [OC(x) for x in ["id", "b"]]
 
-    p = Paging(T2, 3, ob, backwards=False, current_marker=None, get_marker=getitem)
+    p = Paging(T2, 3, ob, backwards=False, current_marker=None, get_keys_from=getitem)
     assert p.next == ((3, 3), False)
     assert not p.has_next
     assert not p.has_previous
@@ -158,7 +158,7 @@ def test_paging_object2_per_page_3():
 def test_paging_object2_per_page_2():
     ob = [OC(x) for x in ["id", "b"]]
 
-    p = Paging(T2, 2, ob, backwards=False, current_marker=None, get_marker=getitem)
+    p = Paging(T2, 2, ob, backwards=False, current_marker=None, get_keys_from=getitem)
     assert p.next == ((2, 1), False)
     assert p.has_next
     general_asserts(p)
@@ -176,7 +176,7 @@ def test_paging_object_text():
         OC(Column("name", String, nullable=False)),
     ]
 
-    p = Paging(T3, 2, ob, backwards=False, current_marker=None, get_marker=getitem)
+    p = Paging(T3, 2, ob, backwards=False, current_marker=None, get_keys_from=getitem)
 
     assert p.rows
 
@@ -196,4 +196,4 @@ def test_paging_object_text():
 def test_warn_on_nullslast():
     with warns(UserWarning):
         ob = [OC(nullslast(column("id")))]
-        Paging(T1, 10, ob, backwards=False, current_marker=None, get_marker=getitem)
+        Paging(T1, 10, ob, backwards=False, current_marker=None, get_keys_from=getitem)

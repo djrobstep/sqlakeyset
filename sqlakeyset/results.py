@@ -39,6 +39,8 @@ def serialize_bookmark(marker):
         containing values of the ordering columns, and `backwards` denotes the
         paging direction.
     :returns: A CSV-like string using ``~`` as a separator."""
+    if marker is None:
+        return None
     x, backwards = marker
     ss = s.serialize_values(x)
     direction = "<" if backwards else ">"
@@ -102,9 +104,16 @@ class Page(list):
 
 
 class Paging:
-    """Object with paging information. Most properties return a page marker.
+    """Metadata describing the position of a page in a collection.
+    Most properties return a page marker.
     Prefix these properties with ``bookmark_`` to get the serialized version of
-    that page marker."""
+    that page marker.
+
+    Unless you're extending sqlakeyset you should not be constructing this
+    class directly - use sqlakeyset.get_page or sqlakeyset.select_page to
+    acquire a Page object, then access page.paging to get the paging
+    metadata.
+    """
 
     def __init__(
         self,
@@ -113,18 +122,17 @@ class Paging:
         ocols,
         backwards,
         current_marker,
-        get_marker=None,
         markers=None,
+        get_keys_from=None,  # used only in unit tests
     ):
-
         self.original_rows = rows
 
-        if get_marker:
+        if get_keys_from:
 
-            def _get_marker(i):
-                return get_marker(self.original_rows[i], ocols)
+            def _get_keys_at(i):
+                return get_keys_from(self.original_rows[i], ocols)
 
-            marker = _get_marker
+            marker = _get_keys_at
         else:
             if rows and not markers:
                 raise ValueError
@@ -132,7 +140,7 @@ class Paging:
 
         self.per_page = per_page
         self.backwards = backwards
-        self._get_marker = marker
+        self._get_keys_at = marker
 
         excess = rows[per_page:]
         rows = rows[:per_page]
@@ -233,7 +241,7 @@ class Paging:
 
     def get_marker_at(self, i):
         """Get the marker for item at the given row index."""
-        return self._get_marker(i), self.backwards
+        return self._get_keys_at(i), self.backwards
 
     def get_bookmark_at(self, i):
         """Get the bookmark for item at the given row index."""
