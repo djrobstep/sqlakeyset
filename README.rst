@@ -15,7 +15,7 @@ sqlakeyset: offset-free paging for sqlalchemy
 
 sqlakeyset implements keyset-based paging for SQLAlchemy (both ORM and core).
 
-This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with other SQLAlchemy-supported databases too, provided they implement lexicographic tuple comparison; e.g. `(1,2) > (0,4)` should be true.
+This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with other SQLAlchemy-supported databases, too; but you should verify the results are correct.
 
 **Notice:** In accordance with Python 2's end-of-life, we've stopped supporting Python versions earlier than 3.4. If you really need it, the latest version to support Python 2 is 0.1.1559103842, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
 
@@ -77,9 +77,9 @@ sqlakeyset does the following to your query in order to get the paged contents:
 Page objects
 ------------
 
-Paged items/rows are returned in a Page object, which is a vanilla python list, except with an attached ``Paging`` object with the paging information.
+Paged items/rows are returned in a ``Page`` object, which is a vanilla python list extended by an attached ``Paging`` object containing paging information.
 
-Properties such as `next` and `previous` return a pair containing the ordering key for the row, and a boolean to specify if the direction is forwards or backwards. We refer to these pairs as *markers*.
+Properties such as `next` and `previous` return a pair containing the ordering key for the row, and a boolean to specify if the direction is forwards or backwards. We refer to such a pair ``(keyset, backwards)`` as a *marker*.
 
 In our above example, the marker specifying the second page might look like:
 
@@ -128,7 +128,7 @@ Limitations
 
 - **Golden Rule:** Always ensure your keysets are unique per row. If you violate this condition you risk skipped rows and other nasty problems. The simplest way to do this is to always include your primary key column(s) at the end of your ordering columns.
 
-- Any rows containing null values in their keysets **will be omitted from the results**, so your ordering columns should be ``NOT NULL``. (This is a consequence of the fact that comparisons against ``NULL`` are always false in SQL.) This may change in the future if we work out an alternative implementation; but for now we recommend using ``coalesce`` as a workaround:
+- Any rows containing null values in their keysets **will be omitted from the results**, so your ordering columns should be ``NOT NULL``. (This is a consequence of the fact that comparisons against ``NULL`` are always false in SQL.) This may change in the future if we work out an alternative implementation; but for now we recommend using ``coalesce`` as a workaround if you need to sort by nullable columns:
 
 .. code-block:: python
 
@@ -139,7 +139,7 @@ Limitations
     with S('postgresql:///books') as s:
         # If Book.cost can be NULL:
         q = s.query(Book).order_by(func.coalesce(Book.cost, 0), Book.id)
-        # page1 will start with books where cost is null:
+        # Assuming cost is non-negative, page1 will start with books where cost is null:
         page1 = get_page(q, per_page=20)
 
 - If you're using the in-built keyset serialization, this only handles basic data/column types so far (strings, ints, floats, datetimes, dates, booleans, and a few others). The serialization can be extended to serialize more advanced types as necessary (documentation on this is forthcoming).
