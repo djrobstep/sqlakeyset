@@ -767,9 +767,21 @@ def test_marker_and_bookmark_per_item(dburl):
         assert paging.get_marker_at(1) == ((2,), False)
         assert paging.get_marker_at(2) == ((3,), False)
 
+        paging_items = list(paging.items())
+        assert len(paging_items) == 3
+        for i, (key, book) in enumerate(paging_items):
+            assert key == ((i + 1,), False)
+            assert book.id == i + 1
+
         assert paging.get_bookmark_at(0) == ">i:1"
         assert paging.get_bookmark_at(1) == ">i:2"
         assert paging.get_bookmark_at(2) == ">i:3"
+
+        bookmark_items = list(paging.bookmark_items())
+        assert len(bookmark_items) == 3
+        for i, (key, book) in enumerate(bookmark_items):
+            assert key == ">i:%d" % (i + 1)
+            assert book.id == i + 1
 
         place, _ = paging.get_marker_at(2)
         page = get_page(q, per_page=3, before=place)

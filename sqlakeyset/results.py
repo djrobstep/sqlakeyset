@@ -247,6 +247,17 @@ class Paging:
         """Get the bookmark for item at the given row index."""
         return serialize_bookmark(self.get_marker_at(i))
 
+    def items(self):
+        """Iterates over the items in the page, returning a tuple ``(marker,
+        item)`` for each."""
+        for i, row in enumerate(self.rows):
+            yield self.get_marker_at(i), row
+
+    def bookmark_items(self):
+        """Iterates over the items in the page, returning a tuple ``(bookmark,
+        item)`` for each."""
+        for i, row in enumerate(self.rows):
+            yield self.get_bookmark_at(i), row
 
     # The remaining properties are just convenient shorthands to avoid manually
     # calling serialize_bookmark.
