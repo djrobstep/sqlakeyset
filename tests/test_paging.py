@@ -17,6 +17,7 @@ from sqlalchemy import (
     table,
     desc,
     func,
+    inspect,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -51,7 +52,19 @@ from sqlakeyset.columns import OC
 
 warnings.simplefilter("error")
 
-Base = declarative_base()
+
+class Base(declarative_base()):
+    __abstract__ = True
+
+    def __repr__(self):
+        try:
+            name = type(self).__name__
+            cols = inspect(type(self)).columns.keys()
+            colstr = ", ".join(f"{k}={getattr(self, k)!r}" for k in cols)
+            return f"{name}({colstr})"
+        except Exception:  # e.g. if instance is stale and detached
+            return super().__repr__()
+
 
 ECHO = False
 
@@ -788,8 +801,17 @@ def test_marker_and_bookmark_per_item(dburl):
 
         paging = page.paging
         assert len(page) == 2
-        assert paging.get_marker_at(0) == ((2,), True)
-        assert paging.get_marker_at(1) == ((1,), True)
+        # *Paging* backwards doesn't mean *sorting* backwards!
+        # The page before id=2 should include items in *ascending* order, with
+        # the last one having id=2.
+        assert paging.get_marker_at(0) == ((1,), True)
+        assert paging.get_marker_at(1) == ((2,), True)
 
-        assert paging.get_bookmark_at(0) == "<i:2"
-        assert paging.get_bookmark_at(1) == "<i:1"
+        assert paging.get_bookmark_at(0) == "<i:1"
+        assert paging.get_bookmark_at(1) == "<i:2"
+
+        bookmark_items = list(paging.bookmark_items())
+        assert len(bookmark_items) == 2
+        for i, (key, book) in enumerate(bookmark_items):
+            assert key == "<i:%d" % (i + 1)
+            assert book.id == i + 1

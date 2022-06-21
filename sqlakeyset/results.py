@@ -27,9 +27,7 @@ def custom_bookmark_type(type, code, deserializer=None, serializer=None):
         `str`.
     :param deserializer: Inverse for `serializer`. Default is the `type`
         constructor."""
-    s.register_type(
-        type, code, deserializer=deserializer, serializer=serializer
-    )
+    s.register_type(type, code, deserializer=deserializer, serializer=serializer)
 
 
 def serialize_bookmark(marker):
@@ -162,6 +160,8 @@ class Paging:
         four = [self.marker_0, self.marker_1, self.marker_n, self.marker_nplus1]
 
         if backwards:
+            if markers is not None:
+                markers.reverse()  # used by _get_keys_at
             self.rows.reverse()
             four.reverse()
 
