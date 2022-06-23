@@ -127,14 +127,14 @@ class Paging:
         self._markers = markers
 
         if get_keys_from:
-            def marker(i):
-                return get_keys_from(self.original_rows[i], ocols)
+            marker = lambda i: get_keys_from(self.original_rows[i], ocols)
+
         else:
             if rows and not markers:
                 raise ValueError
-            def marker(i):
-                # This extra level of indirection allows us to replace self._markers later
-                return self._markers[i]
+
+            # This extra level of indirection allows us to replace self._markers later
+            marker = lambda i: self._markers[i]
 
         self._get_keys_at = marker
         self.per_page = per_page
