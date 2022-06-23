@@ -124,21 +124,21 @@ class Paging:
         get_keys_from=None,  # used only in unit tests
     ):
         self.original_rows = rows
+        self._markers = markers
 
         if get_keys_from:
-
-            def _get_keys_at(i):
+            def marker(i):
                 return get_keys_from(self.original_rows[i], ocols)
-
-            marker = _get_keys_at
         else:
             if rows and not markers:
                 raise ValueError
-            marker = markers.__getitem__
+            def marker(i):
+                # This extra level of indirection allows us to replace self._markers later
+                return self._markers[i]
 
+        self._get_keys_at = marker
         self.per_page = per_page
         self.backwards = backwards
-        self._get_keys_at = marker
 
         excess = rows[per_page:]
         rows = rows[:per_page]
@@ -158,10 +158,15 @@ class Paging:
             self.marker_nplus1 = None
 
         four = [self.marker_0, self.marker_1, self.marker_n, self.marker_nplus1]
+        # Now that we've extracted the before/beyond markers, trim the markers
+        # list to align with the rows list, so that _get_keys_at produces
+        # correct results in all cases.
+        if self._markers is not None:
+            self._markers = self._markers[:per_page]
 
         if backwards:
-            if markers is not None:
-                markers.reverse()  # used by _get_keys_at
+            if self._markers is not None:
+                self._markers.reverse()  # used by _get_keys_at
             self.rows.reverse()
             four.reverse()
 

@@ -796,13 +796,14 @@ def test_marker_and_bookmark_per_item(dburl):
             assert key == ">i:%d" % (i + 1)
             assert book.id == i + 1
 
-        place, _ = paging.get_marker_at(2)
+        # Test backwards paging without excess
+        place = (3,)
         page = get_page(q, per_page=3, before=place)
 
         paging = page.paging
         assert len(page) == 2
         # *Paging* backwards doesn't mean *sorting* backwards!
-        # The page before id=2 should include items in *ascending* order, with
+        # The page before id=3 should include items in *ascending* order, with
         # the last one having id=2.
         assert paging.get_marker_at(0) == ((1,), True)
         assert paging.get_marker_at(1) == ((2,), True)
@@ -815,3 +816,27 @@ def test_marker_and_bookmark_per_item(dburl):
         for i, (key, book) in enumerate(bookmark_items):
             assert key == "<i:%d" % (i + 1)
             assert book.id == i + 1
+
+        # Test backwards paging with excess
+        place = (10,)
+        page = get_page(q, per_page=3, before=place)
+
+        paging = page.paging
+
+        assert len(page) == 3
+        assert paging.get_marker_at(0) == ((7,), True)
+        assert paging.get_marker_at(1) == ((8,), True)
+        assert paging.get_marker_at(2) == ((9,), True)
+
+        assert paging.get_bookmark_at(0) == "<i:7"
+        assert paging.get_bookmark_at(1) == "<i:8"
+        assert paging.get_bookmark_at(2) == "<i:9"
+
+        bookmark_items = list(paging.bookmark_items())
+        assert len(bookmark_items) == 3
+        for i, (key, book) in enumerate(bookmark_items):
+            assert key == "<i:%d" % (i + 7)
+            assert book.id == i + 7
+        for i, (key, book) in enumerate(paging.items()):
+            assert key == ((i + 7,), True)
+            assert book.id == i + 7
