@@ -37,3 +37,7 @@ line_length = 88
 
 [tool.pytest.ini_options]
 filterwarnings = "ignore:.*cache_ok.*:::"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
