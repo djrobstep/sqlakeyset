@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: ~/circleci
     docker:
-      - image: circleci/python:3.8
+      - image: cimg/python:3.8
       - image: circleci/postgres:12
         environment:
           POSTGRES_USER: circleci
@@ -32,11 +32,6 @@ jobs:
       - run:
           name: create mysql user
           command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
-      - run:
-          name: Install poetry
-          command: |
-            sudo pip3 install poetry>=1.3.2
-            poetry config virtualenvs.create false
       - run:
           command: |
             python3 -m venv ~/.venv
