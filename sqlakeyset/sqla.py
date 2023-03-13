@@ -2,6 +2,9 @@ import sqlalchemy
 from packaging import version
 
 
+SQLA_VERSION = version.parse(sqlalchemy.__version__)
+
+
 def get_bind(q, s):
     try:
         # session
@@ -11,7 +14,9 @@ def get_bind(q, s):
         return s
 
 
-if version.parse(sqlalchemy.__version__) < version.parse("1.4.0b1"):
+if SQLA_VERSION < version.parse("1.4.0b1"):
     from .sqla13 import *  # noqa
-else:
+elif SQLA_VERSION < version.parse("2.0"):
     from .sqla14 import *  # noqa
+else:
+    from .sqla20 import *  # noqa

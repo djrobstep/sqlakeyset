@@ -11,7 +11,7 @@ homepage = "https://github.com/djrobstep/sqlakeyset"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4.0"
-sqlalchemy = ">=1.3.11,<2.0"
+sqlalchemy = ">=1.3.11"
 python-dateutil = "*"
 packaging = ">=20.0"
 
