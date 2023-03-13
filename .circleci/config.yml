@@ -32,12 +32,11 @@ jobs:
       - run:
           name: create mysql user
           command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
-      - run:
-          command: |
+      - run: |
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
-
-            poetry config virtualenvs.create false &&
+          
+            poetry config virtualenvs.create false
             poetry install
       - save_cache:
           key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
