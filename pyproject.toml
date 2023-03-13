@@ -10,13 +10,13 @@ repository = "https://github.com/djrobstep/sqlakeyset"
 homepage = "https://github.com/djrobstep/sqlakeyset"
 
 [tool.poetry.dependencies]
-python = ">=3.4"
+python = ">=3.7"
 sqlalchemy = ">=1.3.11"
 python-dateutil = "*"
 packaging = ">=20.0"
 
 [tool.poetry.dev-dependencies]
-sqlbag = "git+https://github.com/djrobstep/sqlbag.git@f4759318710ef33dc041710a6ff38f03d3c39b56"
+sqlbag = { git = "https://github.com/djrobstep/sqlbag.git", rev = "f4759318710ef33dc041710a6ff38f03d3c39b56" }
 pytest = "*"
 pytest-cov = "*"
 pytest-clarity = ">=1.0.0"
