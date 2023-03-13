@@ -35,15 +35,13 @@ jobs:
       - run:
           name: Install poetry
           command: |
-            sudo rm /home/circleci/.config/pypoetry/config.toml
-            sudo curl -sSL https://install.python-poetry.org | python3 -
+            curl -sSL https://install.python-poetry.org | python3 -
             poetry config virtualenvs.create false
       - run:
           command: |
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
-            poetry --version
-            poetry install -vvv
+            poetry config -list
       - save_cache:
           key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
           paths:
