@@ -1,12 +1,5 @@
-"""Methods for messing with the internals of SQLAlchemy >1.3 results."""
-from sqlalchemy.engine.row import Row as _Row, LegacyRow as _LegacyRow
-
+"""Methods for messing with the internals of SQLAlchemy >=2.0 results."""
 from .sqla14_aux import *
-
-
-class LegacyRow(_Row):
-    def keys(self):
-        return result_keys(self._parent)
 
 
 def core_coerce_row(row, extra_columns, result_type):
@@ -16,10 +9,7 @@ def core_coerce_row(row, extra_columns, result_type):
         return row
     N = len(row) - len(extra_columns)
 
-    if isinstance(row, _LegacyRow):
-        cls = LegacyRow
-    else:
-        cls = Row
+    cls = Row
 
     return cls(
         row._parent,
