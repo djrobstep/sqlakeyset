@@ -35,6 +35,7 @@ jobs:
       - run:
           name: Install poetry
           command: |
+            sudo rm /home/circleci/.config/pypoetry/config.toml
             sudo curl -sSL https://install.python-poetry.org | python3 -
             poetry config virtualenvs.create false
       - run:
