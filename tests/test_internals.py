@@ -1,7 +1,14 @@
+from packaging import version
 from pytest import mark, raises, warns
 from sqlalchemy import Column, Integer, String, asc, column, desc
 from sqlalchemy.orm import class_mapper
-from sqlalchemy.ext.declarative import declarative_base
+
+from sqlakeyset.sqla import SQLA_VERSION
+
+if SQLA_VERSION >= version.parse("1.4"):
+    from sqlalchemy.orm import declarative_base
+else:
+    from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import nullslast
 from sqlalchemy.sql.operators import asc_op  # , desc_op
 
