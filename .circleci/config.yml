@@ -35,7 +35,7 @@ jobs:
       - run:
           name: Install poetry
           command: |
-            sudo pip3 install poetry>=1.0.0
+            sudo pip3 install poetry
             poetry config virtualenvs.create false
       - run:
           command: |
