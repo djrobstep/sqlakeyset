@@ -37,7 +37,7 @@ jobs:
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
 
-            poetry config virtualenvs.create false
+            poetry config virtualenvs.create false &&
             poetry install
       - save_cache:
           key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
