@@ -41,7 +41,7 @@ jobs:
           command: |
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
-            poetry install -vvv --only-root
+            poetry install -vvv
       - save_cache:
           key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
           paths:
