@@ -18,8 +18,8 @@ jobs:
 
     steps:
       - checkout
-      - restore_cache:
-          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+      #- restore_cache:
+      #    key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run: sudo apt-get update
       - run: sudo apt-get install -y postgresql-client
       - run: sudo apt-get install -y default-mysql-client
