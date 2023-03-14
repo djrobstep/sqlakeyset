@@ -35,7 +35,7 @@ jobs:
       - run:
           name: Install poetry
           command: |
-            curl -sSL https://install.python-poetry.org | python3 -
+            curl -sSL https://install.python-poetry.org | sudo python3 -
             poetry config virtualenvs.create false
       - run:
           command: |
