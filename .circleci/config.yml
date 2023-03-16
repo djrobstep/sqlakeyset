@@ -4,34 +4,34 @@ jobs:
     working_directory: ~/circleci
     docker:
       - image: cimg/python:3.8
-      - image: cimg/postgres:12.12
-        environment:
-          POSTGRES_USER: circleci
-          POSTGRES_DB: circleci
-          POSTGRES_HOST_AUTH_METHOD: trust
-      - image: cimg/mariadb:10.11
-        environment:
-          MYSQL_DATABASE: circleci
-          MYSQL_USER: circleci
-          MYSQL_PASSWORD: ''
-          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+#      - image: cimg/postgres:12.12
+#        environment:
+#          POSTGRES_USER: circleci
+#          POSTGRES_DB: circleci
+#          POSTGRES_HOST_AUTH_METHOD: trust
+#      - image: cimg/mariadb:10.11
+#        environment:
+#          MYSQL_DATABASE: circleci
+#          MYSQL_USER: circleci
+#          MYSQL_PASSWORD: ''
+#          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
 
     steps:
       - checkout
 #      - restore_cache:
 #          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y postgresql-client
-      - run: sudo apt-get install -y default-mysql-client
-      - run:
-          name: Wait for db
-          command: dockerize -wait tcp://localhost:5432 -wait tcp://localhost:3306 -timeout 1m
-      - run:
-          name: create postgres user
-          command: psql postgresql://@localhost/circleci -c 'create role postgres'
-      - run:
-          name: create mysql user
-          command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
+#      - run: sudo apt-get update
+#      - run: sudo apt-get install -y postgresql-client
+#      - run: sudo apt-get install -y default-mysql-client
+#      - run:
+#          name: Wait for db
+#          command: dockerize -wait tcp://localhost:5432 -wait tcp://localhost:3306 -timeout 1m
+#      - run:
+#          name: create postgres user
+#          command: psql postgresql://@localhost/circleci -c 'create role postgres'
+#      - run:
+#          name: create mysql user
+#          command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
 #      - run:
 #          name: Install poetry
 #          command: |
@@ -44,7 +44,7 @@ jobs:
             which poetry
             poetry --version
             poetry config --list
-            poetry install -vvv
+            poetry install --no-dev -vvv
 #      - save_cache:
 #          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
 #          paths:
