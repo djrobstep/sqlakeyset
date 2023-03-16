@@ -16,6 +16,8 @@ jobs:
           MYSQL_PASSWORD: ''
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
 
+    environment:
+      SQLALCHEMY_SILENCE_UBER_WARNING: 1  # Silence sqlachemy 2.0 warnings
     steps:
       - checkout
       - restore_cache:
