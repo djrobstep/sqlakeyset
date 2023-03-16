@@ -3,13 +3,13 @@ jobs:
   build:
     working_directory: ~/circleci
     docker:
-      - image: circleci/python:3.8
-      - image: circleci/postgres:12
+      - image: cimg/python:3.8
+      - image: cimg/postgres:12
         environment:
           POSTGRES_USER: circleci
           POSTGRES_DB: circleci
           POSTGRES_HOST_AUTH_METHOD: trust
-      - image: circleci/mariadb:latest
+      - image: cimg/mariadb:10.11
         environment:
           MYSQL_DATABASE: circleci
           MYSQL_USER: circleci
@@ -18,8 +18,8 @@ jobs:
 
     steps:
       - checkout
-      #- restore_cache:
-      #    key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+#      - restore_cache:
+#          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run: sudo apt-get update
       - run: sudo apt-get install -y postgresql-client
       - run: sudo apt-get install -y default-mysql-client
@@ -32,24 +32,23 @@ jobs:
       - run:
           name: create mysql user
           command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
+#      - run:
+#          name: Install poetry
+#          command: |
+#            which poetry
+#            sudo pip3 uninstall -y poetry
+#            curl -sSL https://install.python-poetry.org | python3 -
+#            poetry config virtualenvs.create false
       - run:
-          name: Install poetry
           command: |
             which poetry
-            sudo pip3 uninstall -y poetry
-            curl -sSL https://install.python-poetry.org | python3 -
-            poetry config virtualenvs.create false
-      - run:
-          command: |
-            python3 -m venv ~/.venv
-            . ~/.venv/bin/activate
             poetry --version
-            rm poetry.lock
+            poetry config --list
             poetry install -vvv
-      - save_cache:
-          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
-          paths:
-            - "~/.venv"
+#      - save_cache:
+#          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+#          paths:
+#            - "~/.venv"
       - run:
           name: Check formatting
           command: |
