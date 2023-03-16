@@ -44,7 +44,7 @@ jobs:
             which poetry
             poetry --version
             poetry config --list
-            poetry install --no-dev -vvv
+            poetry install --only main -vvv
 #      - save_cache:
 #          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
 #          paths:
