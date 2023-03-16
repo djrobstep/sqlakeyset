@@ -33,13 +33,6 @@ jobs:
           name: create mysql user
           command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
       - run:
-          name: Install poetry
-          command: |
-            which poetry
-            sudo pip3 uninstall -y poetry
-            curl -sSL https://install.python-poetry.org | python3 -
-
-      - run:
           command: |
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
