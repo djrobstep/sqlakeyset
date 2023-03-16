@@ -3,19 +3,21 @@ jobs:
   build:
     working_directory: ~/circleci
     docker:
-      - image: circleci/python:3.8
-      - image: circleci/postgres:12
+      - image: cimg/python:3.8
+      - image: cimg/postgres:12.12
         environment:
           POSTGRES_USER: circleci
           POSTGRES_DB: circleci
           POSTGRES_HOST_AUTH_METHOD: trust
-      - image: circleci/mariadb:latest
+      - image: cimg/mariadb:10.11
         environment:
           MYSQL_DATABASE: circleci
           MYSQL_USER: circleci
           MYSQL_PASSWORD: ''
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
 
+    environment:
+      SQLALCHEMY_SILENCE_UBER_WARNING: 1  # Silence sqlachemy 2.0 warnings
     steps:
       - checkout
       - restore_cache:
@@ -33,15 +35,11 @@ jobs:
           name: create mysql user
           command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
       - run:
-          name: Install poetry
-          command: |
-            sudo pip3 install poetry>=1.0.0
-            poetry config virtualenvs.create false
-      - run:
           command: |
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
 
+            poetry config virtualenvs.create false
             poetry install
       - save_cache:
           key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
