@@ -16,7 +16,7 @@ python-dateutil = "*"
 packaging = ">=20.0"
 
 [tool.poetry.dev-dependencies]
-sqlbag = { git = "https://github.com/djrobstep/sqlbag.git", rev = "f4759318710ef33dc041710a6ff38f03d3c39b56" }
+sqlbag = { git = "https://github.com/acarapetis/sqlbag.git", rev = "0a97a185070228b43cb86181e5df8051f46ebc86" }
 pytest = "*"
 pytest-cov = "*"
 pytest-clarity = ">=1.0.0"
