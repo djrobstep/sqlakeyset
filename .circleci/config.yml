@@ -35,6 +35,7 @@ jobs:
           name: create mysql user
           command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
       - run:
+          name: install deps
           command: |
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
@@ -69,20 +70,20 @@ jobs:
   publish:
     working_directory: ~/circleci
     docker:
-      - image: circleci/python:3.8.2
+      - image: cimg/python:3.8
     steps:
       - setup_remote_docker
       - checkout
       - restore_cache:
           key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run:
-          name: Install poetry, deps
+          name: Install deps
           command: |
-            sudo pip3 install poetry>=1.0.0
-            poetry config virtualenvs.create false
             python3 -m venv ~/.venv
             . ~/.venv/bin/activate
-            poetry install
+
+            poetry config virtualenvs.create false
+            poetry install --no-ansi
       - run:
           name: Bump version, build, install
           command: |
