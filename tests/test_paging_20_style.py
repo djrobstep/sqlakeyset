@@ -1,25 +1,21 @@
+"""SQLAlchemy 2-style ORM tests"""
 import pytest
 from packaging import version
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import aliased
-from test_paging import (
+from conftest import (
     ECHO,
     SQLA_VERSION,
     Author,
     Book,
     S,
-    check_paging_core,
-    dburl,
-    pg_only_dburl,
 )
+from test_paging import check_paging_core
 
 if SQLA_VERSION < version.parse("1.4.0b1"):
     pytest.skip(
         "Legacy SQLAlchemy version, skipping new-style tests", allow_module_level=True
     )
-
-
-#### SQLAlchemy 2-style ORM tests ####
 
 
 def test_new_orm_query1(dburl):
