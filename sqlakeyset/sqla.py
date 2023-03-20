@@ -25,7 +25,7 @@ if SQLA_VERSION < version.parse("1.4.0b1"):
         orm_result_type,
         orm_to_selectable,
     )
-elif SQLA_VERSION < version.parse("2.0"):
+elif SQLA_VERSION < version.parse("2.0.0b1"):
     from .sqla14 import (
         core_coerce_row,
         core_result_type,
