@@ -13,11 +13,11 @@ sqlakeyset: offset-free paging for sqlalchemy
     :alt: conda-forge
     :target: https://anaconda.org/conda-forge/sqlakeyset
 
-sqlakeyset implements keyset-based paging for SQLAlchemy (both ORM and core).
+sqlakeyset implements keyset-based paging for SQLAlchemy (both ORM and core). **Now with full SQLAlchemy 2 support!**
 
-This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with other SQLAlchemy-supported databases, too; but you should verify the results are correct.
+This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with many other SQLAlchemy-supported databases, too; but caveat emptor - you should verify the results are correct.
 
-**Notice:** In accordance with Python 2's end-of-life, we've stopped supporting Python versions earlier than 3.4. If you really need it, the latest version to support Python 2 is 0.1.1559103842, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
+**Notice:** In accordance with Python end-of-life dates, we've stopped supporting Python versions earlier than 3.7. If you really need it, the latest version to support Python 2 is 0.1.1559103842 and Python 3.4 is 1.0.1679209451, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
 
 Background
 ----------
@@ -28,39 +28,52 @@ A lot of people use SQL's ``OFFSET`` syntax to implement paging of query results
 Getting Started
 ---------------
 
-Here's how it works with a typical ORM query:
+Here's how it works with a typical SQLAlchemy 2.0-style query (or SQLAlchemy 1.3 Core):
 
 .. code-block:: python
 
-    from sqlakeyset import get_page
+    from sqlalchemy import select
+    from sqlakeyset import select_page
     from sqlbag import S
 
     from models import Book
 
-    with S('postgresql:///books') as s:  # create a session
-        q = s.query(Book).order_by(Book.author, Book.title, Book.id)  #
+    with S('postgresql:///books') as s:  # s is a session
+        q = select(Book).order_by(Book.author, Book.title, Book.id)
 
         # gets the first page
-        page1 = get_page(q, per_page=20)
+        page1 = select_page(s, q, per_page=20)
 
         # gets the key for the next page
         next_page = page1.paging.next
 
         # gets the second page
-        page2 = get_page(q, per_page=20, page=next_page)
+        page2 = select_page(s, q, per_page=20, page=next_page)
 
         # returning to the first page, getting the key
         previous_page = page2.paging.previous
 
         # the first page again, backwards from the previous page
-        page1 = get_page(q, per_page=20, page=previous_page)
+        page1 = select_page(s, q, per_page=20, page=previous_page)
 
         # what if new items were added at the start?
         if page1.paging.has_previous:
 
             # go back even further
             previous_page = page1.paging.previous
-            page1 = get_page(q, per_page=20, page=previous_page)
+            page1 = select_page(s, q, per_page=20, page=previous_page)
+
+
+If you're still using legacy (i.e. SQLAlchemy 1.3-style) ORM queries, you can
+use ``get_page`` instead, which has an identical API other than the omission of
+the session/connection argument:
+
+.. code-block:: python
+    from sqlakeyset import select_page
+    with S('postgresql:///books') as s:
+        q = s.query(Book).order_by(Book.author, Book.title, Book.id)
+        page1 = get_page(q, per_page=20)
+        # ...
 
 
 Under the Hood
@@ -133,14 +146,14 @@ Limitations
 .. code-block:: python
 
     from sqlakeyset import get_page
-    from sqlalchemy import func
+    from sqlalchemy import func, select
     from sqlbag import S
     from models import Book
     with S('postgresql:///books') as s:
         # If Book.cost can be NULL:
-        q = s.query(Book).order_by(func.coalesce(Book.cost, 0), Book.id)
+        q = select(Book).order_by(func.coalesce(Book.cost, 0), Book.id)
         # Assuming cost is non-negative, page1 will start with books where cost is null:
-        page1 = get_page(q, per_page=20)
+        page1 = select_page(s, q, per_page=20)
 
 - If you're using the in-built keyset serialization, this only handles basic data/column types so far (strings, ints, floats, datetimes, dates, booleans, and a few others). The serialization can be extended to serialize more advanced types as necessary (documentation on this is forthcoming).
 
