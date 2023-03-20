@@ -103,8 +103,22 @@ def core_coerce_row(row, extra_columns, result_type):
         {  # Strip out added OCs from the keymap:
             k: v
             for k, v in row._keymap.items()
-            if not v[1].startswith(ORDER_COL_PREFIX)
+            if not (isinstance(v[1], str) and v[1].startswith(ORDER_COL_PREFIX))
         },
         row._key_style,
         row._data[:N],
     )
+
+
+__all__ = [
+    "Row",
+    "core_coerce_row",
+    "core_result_type",
+    "group_by_clauses",
+    "order_by_clauses",
+    "orm_coerce_row",
+    "orm_query_keys",
+    "orm_result_type",
+    "orm_to_selectable",
+    "result_keys",
+]

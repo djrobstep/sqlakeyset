@@ -107,7 +107,10 @@ def perform_paging(q, per_page, place, backwards, orm=True, s=None):
         if not s:
             raise ValueError("Cannot page core selectable without a session/connection")
         selectable = q
-        column_descriptions = q._raw_columns
+        try:
+            column_descriptions = q.column_descriptions
+        except Exception:
+            column_descriptions = q._raw_columns
 
     dialect = get_bind(q, s).dialect
 
@@ -255,7 +258,7 @@ def process_args(after=False, before=False, page=None):
 def select_page(
     s, selectable, per_page=PER_PAGE_DEFAULT, after=False, before=False, page=None
 ):
-    """Get a page of results from a SQLAlchemy Core selectable.
+    """Get a page of results from a SQLAlchemy Core (or new-style ORM) selectable.
 
     Specify no more than one of the arguments ``page``, ``after`` or
     ``before``. If none of these are provided, the first page is returned.
@@ -281,7 +284,7 @@ def select_page(
 
 
 def get_page(query, per_page=PER_PAGE_DEFAULT, after=False, before=False, page=None):
-    """Get a page of results for an ORM query.
+    """Get a page of results for a Legacy ORM query.
 
     Specify no more than one of the arguments ``page``, ``after`` or
     ``before``. If none of these are provided, the first page is returned.

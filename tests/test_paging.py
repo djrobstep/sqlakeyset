@@ -463,7 +463,7 @@ def test_orm_column_property(dburl):
         check_paging_orm(q=q)
 
 
-def test_column_named_info(dburl):
+def test_orm_column_named_info(dburl):
     # See issue djrobstep#24
     with S(dburl, echo=ECHO) as s:
         aa1 = aliased(Author)
@@ -531,7 +531,6 @@ def test_orm_subquery(dburl):
         check_paging_orm(q=q)
 
 
-@pytest.mark.skip
 def test_orm_recursive_cte(pg_only_dburl):
     with S(pg_only_dburl, echo=ECHO) as s:
         # Start with "origins": books that don't have prequels
