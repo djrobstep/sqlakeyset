@@ -1,3 +1,15 @@
+"""Integration tests that verify sqlakeyset produces correct results when run
+against real databases (SQLite, MySQL, PostgreSQL).
+
+To run these, you need MySQL and PostgreSQL servers running locally, and your
+user needs passwordless access with permissions to create new databases.
+
+If you don't want to set this up, you can instead install the CircleCI Local
+CLI and run
+
+    circleci local execute build
+
+which will execute the tests using docker containers."""
 import warnings
 from packaging import version
 
