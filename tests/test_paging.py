@@ -1,4 +1,5 @@
 import enum
+from functools import partial
 import warnings
 from random import randrange
 from packaging import version
@@ -7,29 +8,37 @@ import pytest
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import (
-    select,
+    select as _select,
     String,
     Column,
     Enum,
     Integer,
     ForeignKey,
-    column,
-    table,
     desc,
     func,
     inspect,
 )
 
 from sqlakeyset.sqla import SQLA_VERSION
-if SQLA_VERSION >= version.parse("1.4"):
-    from sqlalchemy.orm import declarative_base
-else:
-    from sqlalchemy.ext.declarative import declarative_base
-
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship, aliased, column_property, Bundle
 from sqlalchemy.types import TypeDecorator
-from sqlbag import temporary_database, S
+from sqlbag import temporary_database, S as _S
+
+SQLA2 = SQLA_VERSION >= version.parse("1.4")
+
+if SQLA2:
+    from sqlalchemy.orm import declarative_base
+
+    select = _select
+    S = partial(_S, future=True)
+else:
+    from sqlalchemy.ext.declarative import declarative_base
+
+    def select(*args):
+        return _select(args)
+
+    S = _S
 
 import arrow
 from datetime import timedelta
@@ -752,10 +761,10 @@ def test_orm_custom_session_bind(dburl):
 
 
 def test_multiple_engines(dburl, joined_inheritance_dburl):
-
-    eng = sqlalchemy.create_engine(dburl, future=True)
-    eng2 = sqlalchemy.create_engine(joined_inheritance_dburl, future=True)
-    session_factory = sessionmaker(bind=eng, future=True)
+    kw = {"future": True} if SQLA2 else {}
+    eng = sqlalchemy.create_engine(dburl, **kw)
+    eng2 = sqlalchemy.create_engine(joined_inheritance_dburl, **kw)
+    session_factory = sessionmaker(bind=eng, **kw)
     JoinedInheritanceBase.metadata.bind = eng2
 
     s = session_factory()
