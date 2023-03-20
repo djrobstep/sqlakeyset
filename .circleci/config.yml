@@ -2,8 +2,9 @@ version: 2
 jobs:
   build:
     working_directory: ~/circleci
+    resource_class: large
     docker:
-      - image: cimg/python:3.8
+      - image: cimg/python:3.7
       - image: cimg/postgres:12.12
         environment:
           POSTGRES_USER: circleci
@@ -21,7 +22,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps2-py37-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run: sudo apt-get update
       - run: sudo apt-get install -y postgresql-client
       - run: sudo apt-get install -y default-mysql-client
@@ -42,8 +43,9 @@ jobs:
 
             poetry config virtualenvs.create false
             poetry install --no-ansi
+            pip install pytest-xdist # we can speed up tests by running in parallel
       - save_cache:
-          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps2-py37-{{ .Branch }}-{{ checksum "pyproject.toml" }}
           paths:
             - "~/.venv"
       - run:
@@ -52,30 +54,35 @@ jobs:
             . ~/.venv/bin/activate
             make lint
       - run:
+          name: Test with SQLAlchemy 2.0
+          command: |
+            . ~/.venv/bin/activate
+            pip install 'sqlalchemy>=2.0'
+            PYTEST_ARGS="-n4" make test
+      - run:
           name: Test with SQLAlchemy 1.3
           command: |
             . ~/.venv/bin/activate
             pip install 'sqlalchemy>=1.3,<1.4'
-            make test
+            PYTEST_ARGS="-n4" make test
       - run:
           name: Test with SQLAlchemy 1.4
           command: |
             . ~/.venv/bin/activate
-            # sqla14-compatible sqlbag isn't on PyPI yet
-            pip install --upgrade sqlalchemy~=1.4 "git+https://github.com/djrobstep/sqlbag.git@f4759318710ef33dc041710a6ff38f03d3c39b56"
-            make test
+            pip install 'sqlalchemy>=1.4,<2.0'
+            PYTEST_ARGS="-n4" make test
       - store_test_results:
           path: test-reports
 
   publish:
     working_directory: ~/circleci
     docker:
-      - image: cimg/python:3.8
+      - image: cimg/python:3.7
     steps:
       - setup_remote_docker
       - checkout
       - restore_cache:
-          key: deps2-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps2-py37-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run:
           name: Install deps
           command: |
