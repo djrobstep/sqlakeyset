@@ -17,16 +17,6 @@ from sqlbag import temporary_database
 from sqlakeyset.sqla import SQLA_VERSION
 from sqlakeyset import custom_bookmark_type
 
-
-# XXX monkeypatch until sqlalchemy_utils supports sqlalchemy 1.4
-try:
-    from sqlalchemy.orm.query import _ColumnEntity
-except ImportError:
-    import sqlalchemy.orm.query
-    from sqlalchemy.orm.context import _ColumnEntity
-
-    sqlalchemy.orm.query._ColumnEntity = _ColumnEntity
-
 from sqlalchemy_utils import ArrowType
 
 SQLA2 = SQLA_VERSION >= version.parse("1.4")

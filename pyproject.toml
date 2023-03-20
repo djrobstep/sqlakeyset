@@ -26,7 +26,7 @@ flake8 = "*"
 isort = "*"
 pytz = "*"
 black = { version = ">=19.10b0", python=">=3.6" }
-sqlalchemy_utils = "*"
+sqlalchemy_utils = ">=0.37.0"
 arrow = "*"
 toml = ">=0.10.0,<0.11"
 
