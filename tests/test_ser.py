@@ -1,10 +1,10 @@
 from __future__ import unicode_literals
 
 import csv
-import io
 import uuid
 import decimal
 import datetime
+from pathlib import Path
 import pytz
 
 from pytest import raises
@@ -48,8 +48,7 @@ def reversestr(x):
 s.register_type(Y, "y", reversestr, reversestr)
 
 
-with io.open("tests/blns.txt") as f:
-    NAUGHTY = f.read().splitlines()
+NAUGHTY = (Path(__file__).parent / "blns.txt").read_text().splitlines()
 
 
 def test_ser():
