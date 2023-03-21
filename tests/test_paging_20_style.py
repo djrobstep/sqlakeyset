@@ -17,7 +17,6 @@ if SQLA_VERSION < version.parse("1.4.0b1"):
         "Legacy SQLAlchemy version, skipping new-style tests", allow_module_level=True
     )
 
-
 def test_new_orm_query1(dburl):
     spec = [desc(Book.b), Book.d, Book.id]
 

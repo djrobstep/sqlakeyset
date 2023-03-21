@@ -76,6 +76,21 @@ the session/connection argument:
         page1 = get_page(q, per_page=20)
         # ...
 
+We also support asyncio, and the API is near-identical - just import from
+``sqlakeyset.asyncio`` and pass an ``AsyncSession``:
+
+.. code-block:: python
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlakeyset.asyncio import select_page
+    engine = create_async_engine(dburl, future=True)
+    Session = async_sessionmaker(engine)
+    async with Session() as s:
+        q = select(Book).order_by(Book.author, Book.title, Book.id)
+        page1 = await select_page(s, q, per_page=20)
+        # ...
+
 
 Under the Hood
 --------------
