@@ -3,16 +3,18 @@ import pytest
 import pytest_asyncio
 from conftest import SQLA_VERSION, Author, Book
 from packaging import version
+
+if SQLA_VERSION < version.parse("2.0.0b1"):
+    pytest.skip(
+        "Legacy SQLAlchemy version, skipping async tests", allow_module_level=True
+    )
+asa = pytest.importorskip("sqlalchemy.ext.asyncio")
+
 from sqlalchemy import desc, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from sqlakeyset.asyncio import select_page
 from sqlakeyset.results import serialize_bookmark, unserialize_bookmark
 
-if SQLA_VERSION < version.parse("1.4.0b1"):
-    pytest.skip(
-        "Legacy SQLAlchemy version, skipping async tests", allow_module_level=True
-    )
 
 ASYNC_PROTOS = {
     r"postgresql:": "postgresql+asyncpg:",
@@ -25,8 +27,8 @@ ASYNC_PROTOS = {
 async def async_session(dburl):
     for k, v in ASYNC_PROTOS.items():
         dburl = re.sub("^" + k, v, dburl)
-    engine = create_async_engine(dburl, future=True)
-    sessionmaker = async_sessionmaker(engine)
+    engine = asa.create_async_engine(dburl, future=True)
+    sessionmaker = asa.async_sessionmaker(engine)
     async with sessionmaker() as s:
         yield s
 

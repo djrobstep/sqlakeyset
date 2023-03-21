@@ -1,6 +1,7 @@
 """Methods for messing with the internals of SQLAlchemy 1.4/2.0 results."""
+from __future__ import annotations
 from sqlalchemy.engine.result import result_tuple
-from sqlalchemy.engine.row import Row as _Row
+from sqlalchemy.engine.row import Row
 
 from .constants import ORDER_COL_PREFIX
 
@@ -66,7 +67,7 @@ def result_keys(result):
     return [k for k in result.keys if not k.startswith(ORDER_COL_PREFIX)]
 
 
-class Row(_Row):
+class TruncatedRow(Row):
     def keys(self):
         return result_keys(self._parent)
 
@@ -88,16 +89,14 @@ def group_by_clauses(selectable):
     return selectable._group_by_clauses
 
 
-def core_coerce_row(row: _Row, extra_columns, result_type) -> _Row:
+def core_coerce_row(row: Row, extra_columns, result_type) -> TruncatedRow:
     """Trim off the extra columns and return as a correct-as-possible
     sqlalchemy Row."""
     if not extra_columns:
         return row
     N = len(row) - len(extra_columns)
 
-    cls = Row
-
-    return cls(
+    return TruncatedRow(
         row._parent,
         None,  # Processors are applied immediately in sqla1.4+
         {  # Strip out added OCs from the keymap:
@@ -112,6 +111,7 @@ def core_coerce_row(row: _Row, extra_columns, result_type) -> _Row:
 
 __all__ = [
     "Row",
+    "TruncatedRow",
     "core_coerce_row",
     "core_result_type",
     "group_by_clauses",

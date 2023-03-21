@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Union
 import sqlalchemy
 from packaging import version
