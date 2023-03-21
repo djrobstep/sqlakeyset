@@ -1,9 +1,11 @@
 """Methods for messing with the internals of SQLAlchemy >1.3 results."""
-from sqlalchemy.engine.row import LegacyRow as _LegacyRow
+from __future__ import annotations
+from sqlalchemy.engine.row import LegacyRow
 
 from .constants import ORDER_COL_PREFIX
 from .sqla20 import (
     Row,
+    TruncatedRow,
     core_result_type,
     group_by_clauses,
     order_by_clauses,
@@ -15,7 +17,7 @@ from .sqla20 import (
 )
 
 
-class LegacyRow(_LegacyRow):
+class TruncatedLegacyRow(LegacyRow):
     def keys(self):
         return result_keys(self._parent)
 
@@ -30,10 +32,10 @@ def core_coerce_row(row, extra_columns, result_type):
         return row
     N = len(row) - len(extra_columns)
 
-    if isinstance(row, _LegacyRow):
-        cls = LegacyRow
+    if isinstance(row, LegacyRow):
+        cls = TruncatedLegacyRow
     else:
-        cls = Row
+        cls = TruncatedRow
 
     return cls(
         row._parent,
@@ -50,6 +52,7 @@ def core_coerce_row(row, extra_columns, result_type):
 
 __all__ = [
     "Row",
+    "TruncatedRow",
     "core_coerce_row",
     "core_result_type",
     "group_by_clauses",

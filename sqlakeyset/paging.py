@@ -1,5 +1,7 @@
 """Main paging interface and implementation."""
 
+from __future__ import annotations
+
 from functools import partial
 from typing import (
     Any,
@@ -16,7 +18,7 @@ from typing import (
 from typing_extensions import Literal  # to keep python 3.7 support
 
 from sqlalchemy import tuple_, and_, or_
-from sqlalchemy.engine import Connection, Row
+from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
@@ -35,6 +37,7 @@ from .sqla import (
     orm_query_keys,
     orm_result_type,
     orm_to_selectable,
+    Row,
 )
 from .types import Keyset, Marker
 

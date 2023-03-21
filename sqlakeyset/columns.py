@@ -1,5 +1,7 @@
 """Classes and supporting functions to manipulate ordering columns and extract
 keyset markers from query results."""
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from copy import copy
 from typing import List, Optional

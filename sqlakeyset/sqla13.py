@@ -1,4 +1,5 @@
 """Methods for messing with the internals of SQLAlchemy <=1.3 results."""
+from __future__ import annotations
 
 from typing import TypeVar
 from typing_extensions import Protocol
@@ -21,7 +22,7 @@ def orm_result_type(query):
 
 _T = TypeVar("_T", covariant=True)
 class Row(Protocol[_T]):
-    pass
+    """This is a workaround for typechecking errors in sqla13."""
 
 def orm_coerce_row(row, extra_columns, result_type):
     """Trim off the extra columns."""
@@ -75,6 +76,7 @@ def group_by_clauses(selectable):
 
 
 __all__ = [
+    "Row",
     "core_coerce_row",
     "core_result_type",
     "group_by_clauses",
