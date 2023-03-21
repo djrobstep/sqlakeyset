@@ -69,6 +69,7 @@ use ``get_page`` instead, which has an identical API other than the omission of
 the session/connection argument:
 
 .. code-block:: python
+
     from sqlakeyset import select_page
     with S('postgresql:///books') as s:
         q = s.query(Book).order_by(Book.author, Book.title, Book.id)
