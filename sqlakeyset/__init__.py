@@ -12,6 +12,7 @@ from .serial import (
     PageSerializationError,
     UnregisteredType,
 )
+from .types import Keyset, Marker
 
 __all__ = [
     "get_page",
@@ -20,6 +21,8 @@ __all__ = [
     "unserialize_bookmark",
     "Page",
     "Paging",
+    "Keyset",
+    "Marker",
     "custom_bookmark_type",
     "InvalidPage",
     "BadBookmark",

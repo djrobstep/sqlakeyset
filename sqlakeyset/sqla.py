@@ -1,11 +1,14 @@
+from typing import Union
 import sqlalchemy
 from packaging import version
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.orm import Session
 
 
 SQLA_VERSION = version.parse(sqlalchemy.__version__)
 
 
-def get_bind(q, s):
+def get_bind(q, s: Union[Engine, Connection, Session]) -> Union[Engine, Connection]:
     try:
         # session
         return s.get_bind(clause=getattr(q, "statement", q))
@@ -24,6 +27,7 @@ if SQLA_VERSION < version.parse("1.4.0b1"):
         orm_query_keys,
         orm_result_type,
         orm_to_selectable,
+        Row,
     )
 elif SQLA_VERSION < version.parse("2.0.0b1"):
     from .sqla14 import (
@@ -35,6 +39,7 @@ elif SQLA_VERSION < version.parse("2.0.0b1"):
         orm_query_keys,
         orm_result_type,
         orm_to_selectable,
+        Row,
     )
 else:
     from .sqla20 import (
@@ -46,6 +51,7 @@ else:
         orm_query_keys,
         orm_result_type,
         orm_to_selectable,
+        Row,
     )
 
 __all__ = [
@@ -58,4 +64,5 @@ __all__ = [
     "orm_query_keys",
     "orm_result_type",
     "orm_to_selectable",
+    "Row",
 ]

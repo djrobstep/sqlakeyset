@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import decimal
 import datetime
 import base64
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
 import uuid
 import dateutil.parser
 import csv
@@ -81,6 +82,7 @@ TYPES = [
     (datetime.time, "t"),
 ]
 
+# These special values are serialized without prefix codes.
 BUILTINS = {
     "x": None,
     "true": True,
@@ -88,16 +90,31 @@ BUILTINS = {
 }
 BUILTINS_INV = {v: k for k, v in BUILTINS.items()}
 
+T = TypeVar("T")
+
+
+def deserialize_int(s: str) -> int:
+    return int(s)
+
 
 class Serial(object):
-    def __init__(self, *args, **kwargs):
+    serializers: Dict[type, Callable[[Any], Tuple[str, str]]]
+    deserializers: Dict[str, Callable[[str], Any]]
+
+    def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.serializers = {}
         self.deserializers = {}
         for definition in TYPES:
             self.register_type(*definition)
 
-    def register_type(self, type, code, deserializer=None, serializer=None):
+    def register_type(
+        self,
+        type: Type[T],  # TODO: rename this in a major release
+        code: str,
+        deserializer: Optional[Callable[[str], T]] = None,
+        serializer: Optional[Callable[[T], str]] = None,
+    ):
         if serializer is None:
             serializer = str
         if deserializer is None:
@@ -109,30 +126,29 @@ class Serial(object):
         self.serializers[type] = lambda x: (code, serializer(x))
         self.deserializers[code] = deserializer
 
-    def split(self, joined):
+    def split(self, joined: str) -> List[str]:
         s = StringIO(joined)
         r = csv.reader(s, **self.kwargs)
         row = next(r)
         return row
 
-    def join(self, string_list):
+    def join(self, string_list: Iterable[str]) -> str:
         s = StringIO()
         w = csv.writer(s, **self.kwargs)
         w.writerow(string_list)
         return s.getvalue()
 
-    def serialize_values(self, values):
+    def serialize_values(self, values: Optional[Iterable]) -> str:
         if values is None:
             return ""
         return self.join(self.serialize_value(_) for _ in values)
 
-    def unserialize_values(self, s):
+    def unserialize_values(self, s: str) -> Optional[List]:
         if s == "":
             return None
-
         return [self.unserialize_value(_) for _ in self.split(s)]
 
-    def serialize_value(self, x):
+    def serialize_value(self, x) -> str:
         try:
             serializer = self.serializers[type(x)]
         except KeyError:
@@ -155,26 +171,29 @@ class Serial(object):
                 "Use custom_bookmark_type to register it.".format(x, type(x))
             )
 
-    def unserialize_value(self, x):
+    def unserialize_value(self, x: str):
         try:
             c, v = x.split(":", 1)
         except ValueError:
-            c = x
-            v = None
+            # Must be a builtin
+            try:
+                return BUILTINS[x]
+            except KeyError:
+                raise BadBookmark("unrecognized value {}".format(x))
 
         try:
             deserializer = self.deserializers[c]
         except KeyError:
-            pass  # fall through to builtins
+            # try it as a builtin?
+            # This behaviour doesn't make much sense, but keeping it for now for backwards-compatiblity.
+            try:
+                return BUILTINS[c]
+            except KeyError:
+                raise BadBookmark("unrecognized value {}".format(x))
         else:
             try:
                 return deserializer(v)
             except Exception as e:
                 raise BadBookmark(
-                    "Custom bookmark deserializer" "encountered error"
+                    "Custom bookmark deserializer encountered error"
                 ) from e
-
-        try:
-            return BUILTINS[c]
-        except KeyError:
-            raise BadBookmark("unrecognized value {}".format(x))

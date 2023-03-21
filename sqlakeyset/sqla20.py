@@ -88,7 +88,7 @@ def group_by_clauses(selectable):
     return selectable._group_by_clauses
 
 
-def core_coerce_row(row, extra_columns, result_type):
+def core_coerce_row(row: _Row, extra_columns, result_type) -> _Row:
     """Trim off the extra columns and return as a correct-as-possible
     sqlalchemy Row."""
     if not extra_columns:
