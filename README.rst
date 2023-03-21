@@ -32,13 +32,14 @@ Here's how it works with a typical SQLAlchemy 2.0-style query (or SQLAlchemy 1.3
 
 .. code-block:: python
 
-    from sqlalchemy import select
+    from sqlalchemy import create_engine, select
+    from sqlalchemy.orm import Session
     from sqlakeyset import select_page
-    from sqlbag import S
 
     from models import Book
 
-    with S('postgresql:///books') as s:  # s is a session
+    engine = create_engine('postgresql:///books')
+    with Session(engine) as s:
         q = select(Book).order_by(Book.author, Book.title, Book.id)
 
         # gets the first page
@@ -71,7 +72,7 @@ the session/connection argument:
 .. code-block:: python
 
     from sqlakeyset import select_page
-    with S('postgresql:///books') as s:
+    with Session(engine) as s:
         q = s.query(Book).order_by(Book.author, Book.title, Book.id)
         page1 = get_page(q, per_page=20)
         # ...
@@ -82,11 +83,10 @@ We also support asyncio, and the API is near-identical - just import from
 .. code-block:: python
 
     from sqlalchemy import select
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlakeyset.asyncio import select_page
-    engine = create_async_engine(dburl, future=True)
-    Session = async_sessionmaker(engine)
-    async with Session() as s:
+    engine = create_async_engine('postgresql:///books')
+    async with AsyncSession(engine) as s:
         q = select(Book).order_by(Book.author, Book.title, Book.id)
         page1 = await select_page(s, q, per_page=20)
         # ...
@@ -161,11 +161,8 @@ Limitations
 
 .. code-block:: python
 
-    from sqlakeyset import get_page
-    from sqlalchemy import func, select
-    from sqlbag import S
-    from models import Book
-    with S('postgresql:///books') as s:
+    from sqlalchemy import func
+    with Session(engine) as s:
         # If Book.cost can be NULL:
         q = select(Book).order_by(func.coalesce(Book.cost, 0), Book.id)
         # Assuming cost is non-negative, page1 will start with books where cost is null:
