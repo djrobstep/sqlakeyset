@@ -21,6 +21,7 @@ sqlbag = { git = "https://github.com/acarapetis/sqlbag.git", rev = "0a97a1850702
 pytest = "*"
 pytest-cov = "*"
 pytest-clarity = ">=1.0.0"
+pytest-asyncio = "*"
 psycopg2-binary = "*"
 pymysql = "*"
 flake8 = "*"
@@ -30,6 +31,10 @@ black = { version = ">=19.10b0", python=">=3.6" }
 sqlalchemy_utils = ">=0.37.0"
 arrow = "*"
 toml = ">=0.10.0,<0.11"
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.7"}
+aiosqlite = "^0.18.0"
+asyncpg = "^0.27.0"
+aiomysql = "^0.1.1"
 
 [tool.isort]
 multi_line_output = 3

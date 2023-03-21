@@ -4,7 +4,6 @@ from functools import partial
 from typing import (
     Any,
     Generic,
-    Iterable,
     List,
     NamedTuple,
     Optional,
@@ -105,16 +104,22 @@ def where_condition_for_page(
     return compare_tuples(greater=row, lesser=place_row, dialect=dialect)
 
 
-class _PagingResult(NamedTuple, Generic[_T]):
+class _PagingQuery(NamedTuple):
+    query: Query
     order_columns: List[OC]
     mapped_order_columns: List[MappedOrderColumn]
     extra_columns: List
-    rows: Iterable[_T]
-    keys: Optional[List]
 
+class _PagingSelect(NamedTuple):
+    select: Select
+    order_columns: List[OC]
+    mapped_order_columns: List[MappedOrderColumn]
+    extra_columns: List
 
 def orm_page_from_rows(
-    paging_result: _PagingResult,
+    paging_query: _PagingQuery,
+    rows: Sequence[Row],
+    keys: List[str],
     result_type,
     page_size,
     backwards=False,
@@ -124,7 +129,7 @@ def orm_page_from_rows(
     :func:`orm_get_page`) into a :class:`.results.Page` for external
     consumers."""
 
-    _, mapped_ocols, extra_columns, rows, keys = paging_result
+    _, _, mapped_ocols, extra_columns = paging_query
 
     make_row = partial(
         orm_coerce_row, extra_columns=extra_columns, result_type=result_type
@@ -139,50 +144,44 @@ def orm_page_from_rows(
     return page
 
 @overload
-def perform_paging(
-    q: Query[_TP],
+def prepare_paging(
+    q: Query,
     per_page: int,
     place: Optional[Keyset],
     backwards: bool,
     orm: Literal[True],
-    s: Literal[None] = None,
-) -> _PagingResult[Row[_TP]]:
+    dialect: Dialect,
+) -> _PagingQuery:
     ...
 
 @overload
-def perform_paging(
-    q: Select[_TP],
+def prepare_paging(
+    q: Select,
     per_page: int,
     place: Optional[Keyset],
     backwards: bool,
     orm: Literal[False],
-    s: Executor,
-) -> _PagingResult[Row[_TP]]:
+    dialect: Dialect,
+) -> _PagingSelect:
     ...
 
-def perform_paging(
-    q: Union[Query[_TP], Select[_TP]], per_page: int, place: Optional[Keyset], backwards: bool, orm: bool, s: Optional[Executor] = None,
-) -> _PagingResult[Row[_TP]]:
-    keys = None
+def prepare_paging(
+    q: Union[Query, Select], per_page: int, place: Optional[Keyset], backwards: bool, orm: bool, dialect: Dialect,
+) -> Union[_PagingQuery, _PagingSelect]:
     if orm:
         if not isinstance(q, Query):
             raise ValueError(f"If orm=True then q must be a Query")
         selectable = orm_to_selectable(q)
-        s = q.session
         column_descriptions = q.column_descriptions
         keys = orm_query_keys(q)
     else:
         if isinstance(q, Query):
             raise ValueError(f"If orm=False then q cannot be a Query")
-        if not s:
-            raise ValueError("Cannot page core selectable without a session/connection")
         selectable = q
         try:
             column_descriptions = q.column_descriptions
         except Exception:
             column_descriptions = q._raw_columns # type: ignore
-
-    dialect = get_bind(q, s).dialect
 
     order_cols = parse_ob_clause(selectable)
     if backwards:
@@ -217,18 +216,12 @@ def perform_paging(
             q = q.where(condition)
 
     q = q.limit(per_page + 1)  # 1 extra to check if there's a further page
-    rows: Sequence[Row[_TP]]
     if orm:
         assert isinstance(q, Query)
-        rows = q.all()  # type: ignore
+        return _PagingQuery(q, order_cols, mapped_ocols, extra_columns)
     else:
-        assert isinstance(q, Select)
-        selected = s.execute(q)
-        keys = list(selected.keys())
-        N = len(keys) - len(extra_columns)
-        keys = keys[:N]
-        rows = selected.fetchall()
-    return _PagingResult(order_cols, mapped_ocols, extra_columns, rows, keys)
+        assert not isinstance(q, Query)
+        return _PagingSelect(q, order_cols, mapped_ocols, extra_columns)
 
 
 def orm_get_page(q: Query[_TP], per_page: int, place: Optional[Keyset], backwards: bool) -> Page:
@@ -241,18 +234,20 @@ def orm_get_page(q: Query[_TP], per_page: int, place: Optional[Keyset], backward
     :returns: :class:`Page`
     """
     result_type = orm_result_type(q)
-    paging_result = perform_paging(
-        q=q, per_page=per_page, place=place, backwards=backwards, orm=True
+    keys = orm_query_keys(q)
+    paging_query = prepare_paging(
+        q=q, per_page=per_page, place=place, backwards=backwards, orm=True, dialect=q.session.get_bind().dialect
     )
+    rows = paging_query.query.all()
     page = orm_page_from_rows(
-        paging_result, result_type, per_page, backwards, current_place=place
+        paging_query, rows, keys, result_type, per_page, backwards, current_place=place
     )
     return page
 
 
 def core_get_page(
-    s, selectable, per_page: int, place: Optional[Keyset], backwards: bool
-) -> Page:
+    s: Executor, selectable: Select[_TP], per_page: int, place: Optional[Keyset], backwards: bool
+) -> Page[Row[_TP]]:
     """Get a page from an SQLAlchemy Core selectable.
 
     :param s: :class:`sqlalchemy.engine.Connection` or
@@ -269,35 +264,41 @@ def core_get_page(
     # LIMIT 0 to minimize database load (though the fact that a round trip to
     # the DB has to happen at all is regrettable).
     result_type = core_result_type(selectable, s)
-    paging_result = perform_paging(
+    sel = prepare_paging(
         q=selectable,
         per_page=per_page,
         place=place,
         backwards=backwards,
         orm=False,
-        s=s,
+        dialect=get_bind(q=selectable, s=s).dialect,
     )
+    selected = s.execute(sel.select)
+    keys = list(selected.keys())
+    N = len(keys) - len(sel.extra_columns)
+    keys = keys[:N]
     page = core_page_from_rows(
-        paging_result, result_type, per_page, backwards, current_place=place
+        sel, selected.fetchall(), keys, result_type, per_page, backwards, current_place=place
     )
     return page
 
 
 def core_page_from_rows(
-    paging_result: _PagingResult[Row[_TP]],
+    paging_select: _PagingSelect,
+    rows: Sequence,
+    keys: List[str],
     result_type,
     page_size: int,
     backwards: bool = False,
     current_place: Optional[Keyset] = None,
-) -> Page[Row[_TP]]:
+) -> Page[Row]:
     """Turn a raw page of results for an SQLAlchemy Core query (as obtained by
     :func:`.core_get_page`) into a :class:`.Page` for external consumers."""
-    _, mapped_ocols, extra_columns, rows, keys = paging_result
+    _, ocols, mapped_ocols, extra_columns = paging_select
 
     make_row = partial(
         core_coerce_row, extra_columns=extra_columns, result_type=result_type
     )
-    out_rows: List[Row[_TP]] = [make_row(row) for row in rows]
+    out_rows = [make_row(row) for row in rows]
     key_rows = [tuple(col.get_from_row(row) for col in mapped_ocols) for row in rows]
     paging = Paging(
         out_rows, page_size, backwards, current_place, places=key_rows
@@ -351,7 +352,7 @@ def process_args(
 
 
 def select_page(
-    s,
+    s: Executor,
     selectable: Select[_TP],
     per_page: int = PER_PAGE_DEFAULT,
     after: OptionalKeyset = None,
