@@ -195,12 +195,56 @@ def test_paging_object_text():
     assert p.previous == ((1, "test"), True)
     assert p.further == ((2, "test1"), False)
 
+
+def test_paging_backwards_from_none():
+    ob = [
+        OC(Column("id", Integer, nullable=False)),
+        OC(Column("name", String, nullable=False)),
+    ]
+    T3r = list(reversed(T3))
+
+    p = Paging(T3r, 2, backwards=True, current_place=None, places=keys_of(T3r, ob))
+
+    assert p.rows
+
+    assert p.next == ((4, "test3"), False)
+    assert not p.has_next
     general_asserts(p)
 
-    assert p.further
+    assert p.has_previous
+    assert p.has_further
+    assert p.previous == ((3, "test2"), True)
+    assert p.further == ((3, "test2"), True)
+
+
+def test_paging_backwards_from_place():
+    ob = [
+        OC(Column("id", Integer, nullable=False)),
+        OC(Column("name", String, nullable=False)),
+    ]
+    T3r3 = list(reversed(T3[:-1]))
+
+    p = Paging(
+        T3r3,
+        2,
+        backwards=True,
+        current_place=(4, "test3"),
+        places=keys_of(T3r3, ob),
+    )
+
+    assert p.rows
+
+    assert p.has_next
+    assert p.next == ((3, "test2"), False)
+    general_asserts(p)
+
+    assert p.has_previous
+    assert p.has_further
+    assert p.previous == ((2, "test1"), True)
+    assert p.further == ((2, "test1"), True)
 
 
 def test_warn_on_nullslast():
     with warns(UserWarning):
         ob = [OC(nullslast(column("id")))]
-        Paging(T1, 10, ob, backwards=False, current_marker=None, get_keys_from=getitem)
+        Paging(T1, 10, backwards=False, current_place=None, places=keys_of(T1, ob))
