@@ -21,18 +21,18 @@ from sqlalchemy_utils import ArrowType
 
 SQLA2 = SQLA_VERSION >= version.parse("1.4")
 
-if SQLA2:
+if not SQLA2:
+    # This block needs to be before the sqla2 block for type hints to work correctly??
+    # Thus the backwards if-else.
+    from sqlalchemy.ext.declarative import declarative_base
+
+    select = lambda *args: _select(args)
+    S = _S
+else:
     from sqlalchemy.orm import declarative_base
 
     select = _select
     S = partial(_S, future=True)
-else:
-    from sqlalchemy.ext.declarative import declarative_base
-
-    def select(*args):
-        return _select(args)
-
-    S = _S
 
 
 class Base(declarative_base()):

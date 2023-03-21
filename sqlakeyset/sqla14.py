@@ -49,6 +49,7 @@ def core_coerce_row(row, extra_columns, result_type):
 
 
 __all__ = [
+    "Row",
     "core_coerce_row",
     "core_result_type",
     "group_by_clauses",

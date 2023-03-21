@@ -841,7 +841,7 @@ url = ["furl (>=0.4.1)"]
 [[package]]
 name = "sqlbag"
 version = "0.1.1579049654"
-description = ""
+description = "various snippets of SQL-related boilerplate"
 category = "dev"
 optional = false
 python-versions = "*"
@@ -952,4 +952,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7,<4.0"
-content-hash = "811e11b27a6160a71a4beecf4abb818a88d74fc670de82f7207213589b7d74eb"
+content-hash = "997c8ae2baa6b1af48d8b383964bba30535189a5b0973404cfb3b636ff1ea2d8"

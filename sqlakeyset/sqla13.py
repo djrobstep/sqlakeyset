@@ -1,5 +1,7 @@
 """Methods for messing with the internals of SQLAlchemy <=1.3 results."""
 
+from typing import TypeVar
+from typing_extensions import Protocol
 from sqlalchemy.util import lightweight_named_tuple
 
 
@@ -16,6 +18,10 @@ def orm_result_type(query):
     labels = [e._label_name for e in query._entities]
     return lightweight_named_tuple("result", labels)
 
+
+_T = TypeVar("_T", covariant=True)
+class Row(Protocol[_T]):
+    pass
 
 def orm_coerce_row(row, extra_columns, result_type):
     """Trim off the extra columns."""
