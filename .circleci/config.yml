@@ -1,10 +1,20 @@
-version: 2
+version: 2.1
 jobs:
   build:
+    parameters:
+      python:
+        type: string
+        description: Python version to use (e.g. "3.7", "3.11")
+      sqlalchemy:
+        type: string
+        description: |
+          SQLAlchemy version to use (e.g. "2.0.0", "1.4.0").
+          This value is used for the "compatible release" specifier (~=)
+          See https://peps.python.org/pep-0440/#compatible-release.
     working_directory: ~/circleci
     resource_class: large
     docker:
-      - image: cimg/python:3.7
+      - image: cimg/python:<< parameters.python >>
       - image: cimg/postgres:12.12
         environment:
           POSTGRES_USER: circleci
@@ -18,11 +28,11 @@ jobs:
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
 
     environment:
-      SQLALCHEMY_SILENCE_UBER_WARNING: 1  # Silence sqlachemy 2.0 warnings
+      SQLALCHEMY_SILENCE_UBER_WARNING: 1  # Silence sqlalchemy 2.0 warnings
     steps:
       - checkout
       - restore_cache:
-          key: deps2-py37-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps-py-<< parameters.python >>-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run: sudo apt-get update
       - run: sudo apt-get install -y postgresql-client
       - run: sudo apt-get install -y default-mysql-client
@@ -45,7 +55,7 @@ jobs:
             poetry install --no-ansi
             pip install pytest-xdist # we can speed up tests by running in parallel
       - save_cache:
-          key: deps2-py37-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps-py-<< parameters.python >>-{{ .Branch }}-{{ checksum "pyproject.toml" }}
           paths:
             - "~/.venv"
       - run:
@@ -54,22 +64,10 @@ jobs:
             . ~/.venv/bin/activate
             make lint
       - run:
-          name: Test with SQLAlchemy 2.0
+          name: Test with SQLAlchemy ~= << parameters.sqlalchemy >>
           command: |
             . ~/.venv/bin/activate
-            pip install 'sqlalchemy>=2.0'
-            PYTEST_ARGS="-n4" make test
-      - run:
-          name: Test with SQLAlchemy 1.3
-          command: |
-            . ~/.venv/bin/activate
-            pip install 'sqlalchemy>=1.3,<1.4'
-            PYTEST_ARGS="-n4" make test
-      - run:
-          name: Test with SQLAlchemy 1.4
-          command: |
-            . ~/.venv/bin/activate
-            pip install 'sqlalchemy>=1.4,<2.0'
+            pip install 'sqlalchemy~=<< parameters.sqlalchemy >>'
             PYTEST_ARGS="-n4" make test
       - store_test_results:
           path: test-reports
@@ -82,7 +80,7 @@ jobs:
       - setup_remote_docker
       - checkout
       - restore_cache:
-          key: deps2-py37-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps-py-3.7-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run:
           name: Install deps
           command: |
@@ -101,10 +99,13 @@ jobs:
 
 
 workflows:
-  version: 2
   build-then-publish:
     jobs:
-      - build
+      - build:
+          matrix:
+            parameters:
+              python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+              sqlalchemy: ["1.3.0", "1.4.0", "2.0.0"]
       - publish:
           requires:
             - build
