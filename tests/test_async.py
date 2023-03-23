@@ -1,19 +1,19 @@
 import re
+
 import pytest
 import pytest_asyncio
 from conftest import SQLA_VERSION, Author, Book
 from packaging import version
+from sqlalchemy import desc, select
+
+from sqlakeyset.asyncio import select_page
+from sqlakeyset.results import serialize_bookmark, unserialize_bookmark
 
 if SQLA_VERSION < version.parse("2.0.0b1"):
     pytest.skip(
         "Legacy SQLAlchemy version, skipping async tests", allow_module_level=True
     )
 asa = pytest.importorskip("sqlalchemy.ext.asyncio")
-
-from sqlalchemy import desc, select
-
-from sqlakeyset.asyncio import select_page
-from sqlakeyset.results import serialize_bookmark, unserialize_bookmark
 
 
 ASYNC_PROTOS = {
@@ -23,6 +23,7 @@ ASYNC_PROTOS = {
     r"sqlite:": "sqlite+aiosqlite:",
 }
 
+
 @pytest_asyncio.fixture
 async def async_session(dburl):
     for k, v in ASYNC_PROTOS.items():
@@ -31,6 +32,7 @@ async def async_session(dburl):
     sessionmaker = asa.async_sessionmaker(engine)
     async with sessionmaker() as s:
         yield s
+
 
 async def check_paging_async(selectable, s):
     item_counts = range(1, 12)
@@ -77,5 +79,3 @@ async def test_async_orm_query1(async_session):
     spec = [desc(Book.b), Book.d, Book.id]
     q = select(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
     await check_paging_async(q, async_session)
-
-

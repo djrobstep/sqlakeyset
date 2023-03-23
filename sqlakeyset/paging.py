@@ -5,7 +5,6 @@ from __future__ import annotations
 from functools import partial
 from typing import (
     Any,
-    Generic,
     List,
     NamedTuple,
     Optional,
@@ -74,7 +73,7 @@ def compare_tuples(
         *[
             and_(
                 *[lesser[index] == greater[index] for index in range(eq_depth)],
-                lesser[eq_depth] < greater[eq_depth]
+                lesser[eq_depth] < greater[eq_depth],
             )
             for eq_depth in range(len(lesser))
         ]
@@ -113,11 +112,13 @@ class _PagingQuery(NamedTuple):
     mapped_order_columns: List[MappedOrderColumn]
     extra_columns: List
 
+
 class _PagingSelect(NamedTuple):
     select: Select
     order_columns: List[OC]
     mapped_order_columns: List[MappedOrderColumn]
     extra_columns: List
+
 
 def orm_page_from_rows(
     paging_query: _PagingQuery,
@@ -139,12 +140,11 @@ def orm_page_from_rows(
     )
     out_rows = [make_row(row) for row in rows]
     key_rows = [tuple(col.get_from_row(row) for col in mapped_ocols) for row in rows]
-    paging = Paging(
-        out_rows, page_size, backwards, current_place, places=key_rows
-    )
+    paging = Paging(out_rows, page_size, backwards, current_place, places=key_rows)
 
     page = Page(paging.rows, paging, keys=keys)
     return page
+
 
 @overload
 def prepare_paging(
@@ -157,6 +157,7 @@ def prepare_paging(
 ) -> _PagingQuery:
     ...
 
+
 @overload
 def prepare_paging(
     q: Select,
@@ -168,23 +169,28 @@ def prepare_paging(
 ) -> _PagingSelect:
     ...
 
+
 def prepare_paging(
-    q: Union[Query, Select], per_page: int, place: Optional[Keyset], backwards: bool, orm: bool, dialect: Dialect,
+    q: Union[Query, Select],
+    per_page: int,
+    place: Optional[Keyset],
+    backwards: bool,
+    orm: bool,
+    dialect: Dialect,
 ) -> Union[_PagingQuery, _PagingSelect]:
     if orm:
         if not isinstance(q, Query):
-            raise ValueError(f"If orm=True then q must be a Query")
+            raise ValueError("If orm=True then q must be a Query")
         selectable = orm_to_selectable(q)
         column_descriptions = q.column_descriptions
-        keys = orm_query_keys(q)
     else:
         if isinstance(q, Query):
-            raise ValueError(f"If orm=False then q cannot be a Query")
+            raise ValueError("If orm=False then q cannot be a Query")
         selectable = q
         try:
             column_descriptions = q.column_descriptions
         except Exception:
-            column_descriptions = q._raw_columns # type: ignore
+            column_descriptions = q._raw_columns  # type: ignore
 
     order_cols = parse_ob_clause(selectable)
     if backwards:
@@ -227,7 +233,9 @@ def prepare_paging(
         return _PagingSelect(q, order_cols, mapped_ocols, extra_columns)
 
 
-def orm_get_page(q: Query[_TP], per_page: int, place: Optional[Keyset], backwards: bool) -> Page:
+def orm_get_page(
+    q: Query[_TP], per_page: int, place: Optional[Keyset], backwards: bool
+) -> Page:
     """Get a page from an SQLAlchemy ORM query.
 
     :param q: The :class:`Query` to paginate.
@@ -239,7 +247,12 @@ def orm_get_page(q: Query[_TP], per_page: int, place: Optional[Keyset], backward
     result_type = orm_result_type(q)
     keys = orm_query_keys(q)
     paging_query = prepare_paging(
-        q=q, per_page=per_page, place=place, backwards=backwards, orm=True, dialect=q.session.get_bind().dialect
+        q=q,
+        per_page=per_page,
+        place=place,
+        backwards=backwards,
+        orm=True,
+        dialect=q.session.get_bind().dialect,
     )
     rows = paging_query.query.all()
     page = orm_page_from_rows(
@@ -249,7 +262,11 @@ def orm_get_page(q: Query[_TP], per_page: int, place: Optional[Keyset], backward
 
 
 def core_get_page(
-    s: Executor, selectable: Select[_TP], per_page: int, place: Optional[Keyset], backwards: bool
+    s: Executor,
+    selectable: Select[_TP],
+    per_page: int,
+    place: Optional[Keyset],
+    backwards: bool,
 ) -> Page[Row[_TP]]:
     """Get a page from an SQLAlchemy Core selectable.
 
@@ -280,7 +297,13 @@ def core_get_page(
     N = len(keys) - len(sel.extra_columns)
     keys = keys[:N]
     page = core_page_from_rows(
-        sel, selected.fetchall(), keys, result_type, per_page, backwards, current_place=place
+        sel,
+        selected.fetchall(),
+        keys,
+        result_type,
+        per_page,
+        backwards,
+        current_place=place,
     )
     return page
 
@@ -303,9 +326,7 @@ def core_page_from_rows(
     )
     out_rows = [make_row(row) for row in rows]
     key_rows = [tuple(col.get_from_row(row) for col in mapped_ocols) for row in rows]
-    paging = Paging(
-        out_rows, page_size, backwards, current_place, places=key_rows
-    )
+    paging = Paging(out_rows, page_size, backwards, current_place, places=key_rows)
     page = Page(paging.rows, paging, keys=keys)
     return page
 
@@ -385,6 +406,7 @@ def select_page(
     place, backwards = process_args(after, before, page)
 
     return core_get_page(s, selectable, per_page, place, backwards)
+
 
 def get_page(
     query: Query[_TP],

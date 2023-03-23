@@ -31,7 +31,20 @@ from sqlakeyset import (
     InvalidPage,
 )
 from sqlakeyset.paging import process_args
-from conftest import Book, Author, ECHO, S, Animal, Vertebrate, Mammal, Light, select, JoinedInheritanceBase, Base, SQLA2
+from conftest import (
+    Book,
+    Author,
+    ECHO,
+    S,
+    Animal,
+    Vertebrate,
+    Mammal,
+    Light,
+    select,
+    JoinedInheritanceBase,
+    Base,
+    SQLA2,
+)
 
 warnings.simplefilter("error")
 
@@ -208,7 +221,12 @@ def test_orm_column_named_info(dburl):
     with S(dburl, echo=ECHO) as s:
         aa1 = aliased(Author)
         aa2 = aliased(Author)
-        q = s.query(aa2).select_from(aa1).join(aa2, aa2.id == aa1.id).order_by(aa1.info, aa1.id)
+        q = (
+            s.query(aa2)
+            .select_from(aa1)
+            .join(aa2, aa2.id == aa1.id)
+            .order_by(aa1.info, aa1.id)
+        )
 
         check_paging_orm(q=q)
 
@@ -344,8 +362,11 @@ def test_orm_joined_inheritance(joined_inheritance_dburl):
 
 
 def test_core(dburl):
-    selectable = select(Book.b, Book.d, Book.id, Book.c).where(Book.d == 99)\
+    selectable = (
+        select(Book.b, Book.d, Book.id, Book.c)
+        .where(Book.d == 99)
         .order_by(Book.b, Book.d, Book.id, Book.c)
+    )
 
     with S(dburl, echo=ECHO) as s:
         check_paging_core(selectable=selectable, s=s)
@@ -376,18 +397,14 @@ def test_core2(dburl):
 
         v = func.sum(func.coalesce(Book.a, 0)) + func.min(Book.b)
         sel = (
-            select(Book.author_id, func.count(), v)
-            .group_by(Book.author_id)
-            .order_by(v)
+            select(Book.author_id, func.count(), v).group_by(Book.author_id).order_by(v)
         )
         check_paging_core(sel, s)
 
 
 def test_core_enum(dburl):
     with S(dburl, echo=ECHO) as s:
-        selectable = select(Light.id, Light.colour).order_by(
-            Light.intensity, Light.id
-        )
+        selectable = select(Light.id, Light.colour).order_by(Light.intensity, Light.id)
         check_paging_core(selectable=selectable, s=s)
 
 
@@ -511,7 +528,6 @@ def test_multiple_engines(dburl, joined_inheritance_dburl):
 
 
 def test_marker_and_bookmark_per_item(dburl):
-
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.id)
         page = get_page(q, per_page=3)
