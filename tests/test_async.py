@@ -6,7 +6,6 @@ from conftest import SQLA_VERSION, Author, Book
 from packaging import version
 from sqlalchemy import desc, select
 
-from sqlakeyset.asyncio import select_page
 from sqlakeyset.results import serialize_bookmark, unserialize_bookmark
 
 if SQLA_VERSION < version.parse("2.0.0b1"):
@@ -14,6 +13,7 @@ if SQLA_VERSION < version.parse("2.0.0b1"):
         "Legacy SQLAlchemy version, skipping async tests", allow_module_level=True
     )
 asa = pytest.importorskip("sqlalchemy.ext.asyncio")
+asaks = pytest.importorskip("sqlakeyset.asyncio")
 
 
 ASYNC_PROTOS = {
@@ -50,7 +50,7 @@ async def check_paging_async(selectable, s):
                 serialized_page = serialize_bookmark(page)
                 page = unserialize_bookmark(serialized_page)
 
-                page_with_paging = await select_page(
+                page_with_paging = await asaks.select_page(
                     s, selectable, per_page=per_page, page=serialized_page
                 )
                 paging = page_with_paging.paging
