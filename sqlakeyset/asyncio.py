@@ -18,8 +18,13 @@ from sqlakeyset.types import Keyset, Marker
 AsyncExecutor = Union[AsyncSession, AsyncConnection]
 _TP = TypeVar("_TP", bound=Tuple[Any, ...])
 
+
 async def core_get_page(
-    s: AsyncExecutor, selectable: Select[_TP], per_page: int, place: Optional[Keyset], backwards: bool
+    s: AsyncExecutor,
+    selectable: Select[_TP],
+    per_page: int,
+    place: Optional[Keyset],
+    backwards: bool,
 ) -> Page[Row[_TP]]:
     result_type = core_result_type(selectable, s)
     sel = prepare_paging(
@@ -35,9 +40,16 @@ async def core_get_page(
     N = len(keys) - len(sel.extra_columns)
     keys = keys[:N]
     page = core_page_from_rows(
-        sel, selected.fetchall(), keys, result_type, per_page, backwards, current_place=place
+        sel,
+        selected.fetchall(),
+        keys,
+        result_type,
+        per_page,
+        backwards,
+        current_place=place,
     )
     return page
+
 
 async def select_page(
     s: AsyncExecutor,

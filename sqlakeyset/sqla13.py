@@ -21,8 +21,11 @@ def orm_result_type(query):
 
 
 _T = TypeVar("_T", covariant=True)
+
+
 class Row(Protocol[_T]):
     """This is a workaround for typechecking errors in sqla13."""
+
 
 def orm_coerce_row(row, extra_columns, result_type):
     """Trim off the extra columns."""
