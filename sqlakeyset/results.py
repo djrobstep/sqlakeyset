@@ -17,7 +17,7 @@ from typing import (
 )
 
 from .serial import Serial, BadBookmark
-from .types import Keyset, Marker
+from .types import Keyset, Marker, MarkerLike
 
 SERIALIZER_SETTINGS = dict(
     lineterminator=str(""),
@@ -53,7 +53,7 @@ def custom_bookmark_type(
 
 
 @overload
-def serialize_bookmark(marker: Marker) -> str:
+def serialize_bookmark(marker: MarkerLike) -> str:
     ...
 
 
@@ -62,7 +62,7 @@ def serialize_bookmark(marker: None) -> None:
     ...
 
 
-def serialize_bookmark(marker: Optional[Marker]) -> Optional[str]:
+def serialize_bookmark(marker: Optional[MarkerLike]) -> Optional[str]:
     """Serialize a place marker to a bookmark string.
 
     :returns: A CSV-like string using ``~`` as a separator."""
@@ -98,10 +98,10 @@ def unserialize_bookmark(bookmark: str) -> Marker:
     return Marker(None if cells is None else tuple(cells), backwards)
 
 
-_Row = TypeVar("_Row", bound=Sequence)
+_Row = TypeVar("_Row", bound=Sequence, covariant=True)
 
 
-class Page(List[_Row]):
+class Page(list, Sequence[_Row]):  # Can't subclass List[_Row] directly because _Row is covariant
     """A :class:`list` of result rows with access to paging information and
     some convenience methods."""
 

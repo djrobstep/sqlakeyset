@@ -38,12 +38,10 @@ from .sqla import (
     orm_to_selectable,
     Row,
 )
-from .types import Keyset, Marker
+from .types import Keyset, Marker, MarkerLike
 
 
 _TP = TypeVar("_TP", bound=Tuple[Any, ...])
-_T = TypeVar("_T")
-Executor = Union[Session, Connection]
 
 PER_PAGE_DEFAULT = 10
 
@@ -125,9 +123,9 @@ def orm_page_from_rows(
     rows: Sequence[Row],
     keys: List[str],
     result_type,
-    page_size,
-    backwards=False,
-    current_place=None,
+    page_size: int,
+    backwards: bool = False,
+    current_place: Optional[Keyset] = None,
 ) -> Page:
     """Turn a raw page of results for an ORM query (as obtained by
     :func:`orm_get_page`) into a :class:`.results.Page` for external
@@ -262,7 +260,7 @@ def orm_get_page(
 
 
 def core_get_page(
-    s: Executor,
+    s: Union[Session, Connection],
     selectable: Select[_TP],
     per_page: int,
     place: Optional[Keyset],
@@ -319,7 +317,7 @@ def core_page_from_rows(
 ) -> Page[Row]:
     """Turn a raw page of results for an SQLAlchemy Core query (as obtained by
     :func:`.core_get_page`) into a :class:`.Page` for external consumers."""
-    _, ocols, mapped_ocols, extra_columns = paging_select
+    _, _, mapped_ocols, extra_columns = paging_select
 
     make_row = partial(
         core_coerce_row, extra_columns=extra_columns, result_type=result_type
@@ -340,7 +338,7 @@ OptionalKeyset = Union[Keyset, Literal[False], None]
 def process_args(
     after: OptionalKeyset = None,
     before: OptionalKeyset = None,
-    page: Optional[Union[Marker, str]] = None,
+    page: Optional[Union[MarkerLike, str]] = None,
 ) -> Marker:
     if isinstance(page, str):
         page = unserialize_bookmark(page)
@@ -361,7 +359,7 @@ def process_args(
         try:
             place, backwards = page
         except ValueError as e:
-            raise InvalidPage("page is not a recognized string or tuple") from e
+            raise InvalidPage("page is not a recognized string or marker tuple") from e
     elif after:
         place = after
         backwards = False
@@ -372,16 +370,19 @@ def process_args(
         backwards = False
         place = None
 
+    if place is not None and not isinstance(place, tuple):
+        raise ValueError("Keyset (after, before or page[0]) must be a tuple or None")
+
     return Marker(place, backwards)
 
 
 def select_page(
-    s: Executor,
+    s: Union[Session, Connection],
     selectable: Select[_TP],
     per_page: int = PER_PAGE_DEFAULT,
     after: OptionalKeyset = None,
     before: OptionalKeyset = None,
-    page: Optional[Union[Marker, str]] = None,
+    page: Optional[Union[MarkerLike, str]] = None,
 ) -> Page[Row[_TP]]:
     """Get a page of results from a SQLAlchemy Core (or new-style ORM) selectable.
 
@@ -413,7 +414,7 @@ def get_page(
     per_page: int = PER_PAGE_DEFAULT,
     after: OptionalKeyset = None,
     before: OptionalKeyset = None,
-    page: Optional[Union[Marker, str]] = None,
+    page: Optional[Union[MarkerLike, str]] = None,
 ) -> Page[Row[_TP]]:
     """Get a page of results for a legacy ORM query.
 
