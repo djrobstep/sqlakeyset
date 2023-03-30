@@ -13,14 +13,13 @@ from sqlakeyset.paging import (
 )
 from sqlakeyset.results import Page
 from sqlakeyset.sqla import core_result_type, get_bind
-from sqlakeyset.types import Keyset, Marker
+from sqlakeyset.types import Keyset, MarkerLike
 
-AsyncExecutor = Union[AsyncSession, AsyncConnection]
 _TP = TypeVar("_TP", bound=Tuple[Any, ...])
 
 
 async def core_get_page(
-    s: AsyncExecutor,
+    s: Union[AsyncSession, AsyncConnection],
     selectable: Select[_TP],
     per_page: int,
     place: Optional[Keyset],
@@ -52,12 +51,12 @@ async def core_get_page(
 
 
 async def select_page(
-    s: AsyncExecutor,
+    s: Union[AsyncSession, AsyncConnection],
     selectable: Select[_TP],
     per_page: int = PER_PAGE_DEFAULT,
     after: OptionalKeyset = None,
     before: OptionalKeyset = None,
-    page: Optional[Union[Marker, str]] = None,
+    page: Optional[Union[MarkerLike, str]] = None,
 ) -> Page[Row[_TP]]:
     """Get a page of results from a SQLAlchemy Core (or new-style ORM)
     selectable using an asyncio connection.

@@ -463,11 +463,21 @@ def test_args():
     assert process_args(before=(1, 2)) == ((1, 2), True)
 
     with pytest.raises(ValueError):
+        # Can't pass after AND before
         process_args(before=(1, 2), after=(1, 2))
+
     with pytest.raises(ValueError):
-        process_args(before=(1, 2), page=(1, 2))
+        # Can't pass before AND page
+        process_args(before=(1, 2), page=((1, 2), True))
+
     with pytest.raises(ValueError):
-        process_args(after=(1, 2), page=(1, 2))
+        # Can't pass after AND page
+        process_args(after=(1, 2), page=((1, 2), True))
+
+    with pytest.raises(ValueError):
+        # page must be a full marker
+        process_args(page=(1, 2))  # type: ignore
+
     assert process_args(False, False, None) == (None, False)
 
 

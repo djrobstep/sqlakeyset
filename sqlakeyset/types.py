@@ -1,7 +1,7 @@
 """Keyset/Marker types"""
 from __future__ import annotations
 
-from typing import Optional, Tuple, NamedTuple
+from typing import Optional, Tuple, NamedTuple, Union
 
 Keyset = Tuple
 """A tuple with as many entries as you have sort keys, representing a place in
@@ -18,3 +18,7 @@ class Marker(NamedTuple):
 
     place: Optional[Keyset] = None
     backwards: bool = False
+
+
+# Methods that accept markers also accept plain tuples, so we use this type hint:
+MarkerLike = Union[Marker, Tuple[Optional[Keyset], bool]]
