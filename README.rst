@@ -13,7 +13,7 @@ sqlakeyset: offset-free paging for sqlalchemy
     :alt: conda-forge
     :target: https://anaconda.org/conda-forge/sqlakeyset
 
-sqlakeyset implements keyset-based paging for SQLAlchemy (both ORM and core). **Now with full SQLAlchemy 2 support!**
+sqlakeyset implements keyset-based paging for SQLAlchemy (both ORM and core). **Now with full SQLAlchemy 2 support and type hints!**
 
 This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with many other SQLAlchemy-supported databases, too; but caveat emptor - you should verify the results are correct.
 

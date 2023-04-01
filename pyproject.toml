@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sqlakeyset"
-version = "1.0"
+version = "2.0"
 authors = [ "Robert Lechte <robertlechte@gmail.com>", "Anthony Carapetis <anthony.carapetis@gmail.com>" ]
 license = "Unlicense"
 readme = "README.rst"
