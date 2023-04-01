@@ -6,8 +6,9 @@ API Documentation
 Pagination API
 ^^^^^^^^^^^^^^
 
-.. autofunction:: get_page
 .. autofunction:: select_page
+.. autofunction:: sqlakeyset.asyncio.select_page
+.. autofunction:: get_page
 
 Pagination Results
 ^^^^^^^^^^^^^^^^^^
