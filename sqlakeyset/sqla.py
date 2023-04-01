@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union
+from typing import TYPE_CHECKING, Union
 import sqlalchemy
 from packaging import version
 from sqlalchemy.engine import Connection, Engine
@@ -10,13 +10,31 @@ from sqlalchemy.orm import Session
 SQLA_VERSION = version.parse(sqlalchemy.__version__)
 
 
-def get_bind(q, s: Union[Engine, Connection, Session]) -> Union[Engine, Connection]:
-    try:
-        # session
+try:
+    from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
+except ImportError:
+    if not TYPE_CHECKING:
+        class AsyncConnection:
+            pass
+
+        class AsyncEngine:
+            pass
+
+        class AsyncSession:
+            pass
+
+
+def get_bind(
+    q, s: Union[Engine, Connection, Session, AsyncEngine, AsyncConnection, AsyncSession]
+) -> Union[Engine, Connection]:
+    if isinstance(s, (Session, AsyncSession)):
         return s.get_bind(clause=getattr(q, "statement", q))
-    except Exception:
-        # connection/engine
+    elif isinstance(s, (Engine, Connection)):
         return s
+    elif isinstance(s, (AsyncEngine, AsyncConnection)):
+        return s.sync_engine
+    else:
+        raise ValueError(f"{s} is not a (sync/async) Engine, Connection or Session.")
 
 
 if SQLA_VERSION < version.parse("1.4.0b1"):
