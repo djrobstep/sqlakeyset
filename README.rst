@@ -71,7 +71,7 @@ the session/connection argument:
 
 .. code-block:: python
 
-    from sqlakeyset import select_page
+    from sqlakeyset import get_page
     with Session(engine) as s:
         q = s.query(Book).order_by(Book.author, Book.title, Book.id)
         page1 = get_page(q, per_page=20)
