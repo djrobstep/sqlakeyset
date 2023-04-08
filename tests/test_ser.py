@@ -161,7 +161,7 @@ def test_serial_row():
 
 def test_unserial_row():
     def twoway(x):
-        assert s.unserialize_values(s.serialize_values(x)) == x
+        assert s.unserialize_values(s.serialize_values(x)) == tuple(x)
 
     twoway([None, True])
     twoway(["hello", "world", 13])
