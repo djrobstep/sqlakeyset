@@ -143,10 +143,10 @@ class Serial(object):
             return ""
         return self.join(self.serialize_value(_) for _ in values)
 
-    def unserialize_values(self, s: str) -> Optional[List]:
+    def unserialize_values(self, s: str) -> Optional[Tuple]:
         if s == "":
             return None
-        return [self.unserialize_value(_) for _ in self.split(s)]
+        return tuple(self.unserialize_value(_) for _ in self.split(s))
 
     def serialize_value(self, x) -> str:
         try:
