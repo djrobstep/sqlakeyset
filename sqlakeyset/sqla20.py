@@ -1,5 +1,6 @@
 """Methods for messing with the internals of SQLAlchemy 1.4/2.0 results."""
 from __future__ import annotations
+
 from sqlalchemy.engine.result import result_tuple
 from sqlalchemy.engine.row import Row
 
@@ -96,16 +97,35 @@ def core_coerce_row(row: Row, extra_columns, result_type) -> Row:
         return row
     N = len(row) - len(extra_columns)
 
+    parent = row._parent
+    processors = None  # Processors are applied immediately in sqla1.4+
+    data = row._data[:N]
+
+    if hasattr(row, "_key_to_index"):
+        # 2.0.11+
+        structure = (
+            {  # Strip out added OCs from the keymap:
+                k: row[v]
+                for k, v in row._key_to_index.items()
+                if not (isinstance(k, str) and k.startswith(ORDER_COL_PREFIX))
+            },
+        )
+    else:
+        # <2.0.11
+        structure = (
+            {  # Strip out added OCs from the keymap:
+                k: v
+                for k, v in row._keymap.items()
+                if not (isinstance(v[1], str) and v[1].startswith(ORDER_COL_PREFIX))
+            },
+            row._key_style,
+        )
+
     return TruncatedRow(
-        row._parent,
-        None,  # Processors are applied immediately in sqla1.4+
-        {  # Strip out added OCs from the keymap:
-            k: v
-            for k, v in row._keymap.items()
-            if not (isinstance(v[1], str) and v[1].startswith(ORDER_COL_PREFIX))
-        },
-        row._key_style,
-        row._data[:N],
+        parent,
+        processors,
+        *structure,
+        data,
     )
 
 
