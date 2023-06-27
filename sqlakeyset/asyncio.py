@@ -1,6 +1,6 @@
 from typing import Any, Optional, Tuple, TypeVar, Union
 
-from sqlalchemy import Select
+from sqlalchemy.sql.selectable import Select
 from sqlalchemy.engine.row import Row
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
