@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Any, Optional, Tuple, TypeVar, Union
 
 from sqlalchemy.sql.selectable import Select
