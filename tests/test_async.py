@@ -4,11 +4,11 @@ import pytest
 import pytest_asyncio
 from conftest import SQLA_VERSION, Author, Book
 from packaging import version
-from sqlalchemy import desc, select
+from sqlalchemy import desc, orm, select
 
 from sqlakeyset.results import serialize_bookmark, unserialize_bookmark
 
-if SQLA_VERSION < version.parse("2.0.0b1"):
+if SQLA_VERSION < version.parse("1.4.0"):
     pytest.skip(
         "Legacy SQLAlchemy version, skipping async tests", allow_module_level=True
     )
@@ -29,7 +29,11 @@ async def async_session(dburl):
     for k, v in ASYNC_PROTOS.items():
         dburl = re.sub("^" + k, v, dburl)
     engine = asa.create_async_engine(dburl, future=True)
-    sessionmaker = asa.async_sessionmaker(engine)
+    try:
+        sessionmaker = asa.async_sessionmaker(engine)
+    except AttributeError:  # sqlalchemy 1.4 has no async_sessionmaker
+        sessionmaker = orm.sessionmaker(engine, class_=asa.AsyncSession)
+
     async with sessionmaker() as s:
         yield s
 
