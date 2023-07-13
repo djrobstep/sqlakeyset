@@ -16,6 +16,7 @@ from .types import Keyset, Marker
 
 __all__ = [
     "get_page",
+    "get_homogeneous_pages",
     "select_page",
     "serialize_bookmark",
     "unserialize_bookmark",
