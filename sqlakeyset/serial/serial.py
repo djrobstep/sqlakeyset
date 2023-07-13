@@ -157,25 +157,25 @@ class Serial(object):
         return None
 
     def serialize_value(self, x) -> str:
+        with suppress(KeyError):
+            return BUILTINS_INV[x]
+
         serializer = self.get_serializer(x)
 
-        if serializer is not None:
-            try:
-                c, x = serializer(x)
-            except Exception as e:
-                raise PageSerializationError(
-                    "Custom bookmark serializer " "encountered error"
-                ) from e
-            else:
-                return "{}:{}".format(c, x)
-
-        try:
-            return BUILTINS_INV[x]
-        except KeyError:
+        if serializer is None:
             raise UnregisteredType(
                 "Don't know how to serialize type of {} ({}). "
                 "Use custom_bookmark_type to register it.".format(x, type(x))
             )
+
+        try:
+            c, x = serializer(x)
+        except Exception as e:
+            raise PageSerializationError(
+                "Custom bookmark serializer " "encountered error"
+            ) from e
+
+        return "{}:{}".format(c, x)
 
     def unserialize_value(self, x: str):
         try:
