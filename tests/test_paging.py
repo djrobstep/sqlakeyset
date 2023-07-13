@@ -421,7 +421,7 @@ def test_orm_joined_inheritance(joined_inheritance_dburl):
 
 
 def test_orm_multiple_pages(no_sqlite_url):
-    with S(dburl, echo=ECHO) as s:
+    with S(no_sqlite_url, echo=ECHO) as s:
         qs = [
             s.query(Book).order_by(Book.author_id, Book.id),
             s.query(Book).filter(Book.author_id == 1).order_by(Book.id),
@@ -431,7 +431,7 @@ def test_orm_multiple_pages(no_sqlite_url):
 
 
 def test_orm_multiple_pages_one_query(no_sqlite_url):
-    with S(dburl, echo=ECHO) as s:
+    with S(no_sqlite_url, echo=ECHO) as s:
         qs = [
             s.query(Book).order_by(Book.id),
         ]
