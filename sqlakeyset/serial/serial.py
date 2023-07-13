@@ -89,10 +89,10 @@ class IsDict(dict):
     same hash as 1/0. This dict subclass will only return the value if
     the key `is` the key in the dict"""
     def __getitem__(self, item):
-        return super(id(item))
+        return dict.__getitem__(self, id(item))
 
     def __setitem__(self, key, value):
-        super(id(key), value)
+        return dict.__setitem__(self, id(key), value)
 
 
 # These special values are serialized without prefix codes.
