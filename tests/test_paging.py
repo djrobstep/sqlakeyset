@@ -424,10 +424,23 @@ def test_orm_multiple_pages(dburl):
     with S(dburl, echo=ECHO) as s:
         qs = [
             s.query(Book).order_by(Book.author_id, Book.id),
-            s.query(Book).filter(Book.author_id < 4).order_by(Book.id),
+            s.query(Book).filter(Book.author_id == 1).order_by(Book.id),
             s.query(Book).order_by(Book.author_id, Book.id.desc()),
         ]
-    check_multiple_paging_orm(qs=qs)
+        check_multiple_paging_orm(qs=qs)
+
+
+def test_orm_multiple_pages_one_query(dburl):
+    with S(dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Book).order_by(Book.id),
+        ]
+        check_multiple_paging_orm(qs=qs)
+
+
+def test_orm_multiple_pages_empty_queries(dburl):
+    with S(dburl, echo=ECHO) as s:
+        assert get_homogeneous_pages([]) == []
 
 
 def test_core(dburl):
