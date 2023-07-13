@@ -87,7 +87,7 @@ TYPES = [
 class IsDict(dict):
     """Python's dict uses hash for implementation and True/False have the
     same hash as 1/0. This dict subclass will only return the value if
-    the key is the key in the dict"""
+    the key `is` the key in the dict"""
     def __getitem__(self, item):
         return super(id(item))
 
