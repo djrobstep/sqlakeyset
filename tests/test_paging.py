@@ -116,7 +116,7 @@ def check_multiple_paging_orm(qs):
         ]
         pages_with_paging = get_homogeneous_pages(page_requests)
         for p, t in zip(pages_with_paging, page_trackers):
-            page_trackers.page_with_paging = p
+            t.page_with_paging = p
 
         for i, t in enumerate(list(page_trackers)):
             page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i)
