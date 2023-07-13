@@ -15,7 +15,7 @@ valid sqlalchemy versions are 1.3.0, 1.4.0, 2.0.0.)"""
 import warnings
 from dataclasses import dataclass
 from packaging import version
-from typing import Union
+from typing import Tuple, Union
 
 import pytest
 import sqlalchemy
@@ -61,7 +61,7 @@ class _PageTracker:
     unpaged: list
     gathered: list
     backwards: bool
-    page: tuple[Union[MarkerLike, str], bool]
+    page: Tuple[Union[MarkerLike, str], bool]
     page_with_paging: Page | None = None
 
 
