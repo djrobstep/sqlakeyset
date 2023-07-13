@@ -84,15 +84,21 @@ TYPES = [
 ]
 
 
-class IsDict(dict):
-    """Python's dict uses hash for implementation and True/False have the
-    same hash as 1/0. This dict subclass will only return the value if
+class IDDict:
+    """Python's dict uses hash for implementation and True/False have
+    the same hash as 1/0. This version will only return the value if
     the key `is` the key in the dict"""
+    def __init__(self, d_in):
+        self.d = {id(k): v for k, v in d_in.items()}
+
     def __getitem__(self, item):
-        return dict.__getitem__(self, id(item))
+        try:
+            return self.d[id(item)]
+        except KeyError:
+            raise KeyError(item)
 
     def __setitem__(self, key, value):
-        return dict.__setitem__(self, id(key), value)
+        self.d[id(key)] = value
 
 
 # These special values are serialized without prefix codes.
@@ -101,7 +107,7 @@ BUILTINS = {
     "true": True,
     "false": False,
 }
-BUILTINS_INV = IsDict({v: k for k, v in BUILTINS.items()})
+BUILTINS_INV = IDDict({v: k for k, v in BUILTINS.items()})
 
 T = TypeVar("T")
 
