@@ -9,6 +9,7 @@ import uuid
 import dateutil.parser
 import csv
 from io import StringIO
+from contextlib import suppress
 
 
 class InvalidPage(ValueError):
@@ -148,12 +149,17 @@ class Serial(object):
             return None
         return tuple(self.unserialize_value(_) for _ in self.split(s))
 
+    def get_serializer(self, x):
+        for cls in type(x).__mro__:
+            with suppress(KeyError):
+                return self.serializers[cls]
+
+        return None
+
     def serialize_value(self, x) -> str:
-        try:
-            serializer = self.serializers[type(x)]
-        except KeyError:
-            pass  # fall through to builtins
-        else:
+        serializer = self.get_serializer(x)
+
+        if serializer is not None:
             try:
                 c, x = serializer(x)
             except Exception as e:

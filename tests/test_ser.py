@@ -95,6 +95,14 @@ def test_bad_serializer():
         s.serialize_value(Q())
 
 
+def test_subclass():
+    class SubclassedUUID(uuid.UUID):  # such as asyncpg.pgproto.pgproto.UUID
+        pass
+
+    _uuid = s.serialize_value(SubclassedUUID("939d4cc9-830d-4cca-bd74-3ec3d541a9b3"))
+    assert _uuid == "uuid:939d4cc9-830d-4cca-bd74-3ec3d541a9b3"
+
+
 def test_serial():
     assert s.serialize_value(None) == "x"
     assert s.serialize_value(True) == "true"
