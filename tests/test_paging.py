@@ -64,11 +64,11 @@ class _PageTracker:
     page_with_paging: Page | None = None
 
 
-def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, per_page):
+def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page):
     """Returns the next page, or None if no further pages."""
     paging = page_with_paging.paging
 
-    assert paging.current == page_with_paging.page
+    assert paging.current == page
 
     if backwards:
         gathered = page_with_paging + gathered
@@ -115,7 +115,7 @@ def check_multiple_paging_orm(qs):
             page_trackers.page_with_paging = p
 
         for i, t in enumerate(list(page_trackers)):
-            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, i)
+            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i)
             if page is None:
                 # Ensure union of pages is original q.all()
                 assert t.gathered == t.unpaged
@@ -140,7 +140,7 @@ def check_paging_orm(q):
                 page = unserialize_bookmark(serialized_page)
 
                 page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
-                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged, per_page)
+                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page)
                 if page is None:
                     break
 
