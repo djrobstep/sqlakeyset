@@ -13,8 +13,8 @@ which will execute the tests for python 3.11 and sqlalchemy ~=2.0.0 using
 docker containers. (Available python versions are 3.7, 3.8, 3.9, 3.10, 3.11 and
 valid sqlalchemy versions are 1.3.0, 1.4.0, 2.0.0.)"""
 import warnings
+from dataclasses import dataclass
 from packaging import version
-from typing import Any
 
 import pytest
 import sqlalchemy
@@ -64,11 +64,11 @@ class _PageTracker:
     page_with_paging: Page | None = None
 
 
-def assert_paging_orm(page_with_paging, gathered, backwards, unpaged):
+def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, per_page):
     """Returns the next page, or None if no further pages."""
     paging = page_with_paging.paging
 
-    assert paging.current == page
+    assert paging.current == page_with_paging.page
 
     if backwards:
         gathered = page_with_paging + gathered
@@ -101,10 +101,10 @@ def check_multiple_paging_orm(qs):
             page=(None, i % 2 == 0),
             unpaged=q.all(),
         )
-        for q in qs
+        for i, q in enumerate(qs)
     ]
     while True:
-        for t in page_tackers:
+        for t in page_trackers:
             t.page = unserialize_bookmark(serialize_bookmark(t.page))
 
         page_requests = [
@@ -114,8 +114,8 @@ def check_multiple_paging_orm(qs):
         for p, t in zip(pages_with_paging, page_trackers):
             page_trackers.page_with_paging = p
 
-        for t in list(page_tackers):
-            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged)
+        for i, t in enumerate(list(page_trackers)):
+            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, i)
             if page is None:
                 # Ensure union of pages is original q.all()
                 assert t.gathered == t.unpaged
@@ -140,7 +140,7 @@ def check_paging_orm(q):
                 page = unserialize_bookmark(serialized_page)
 
                 page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
-                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged)
+                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged, per_page)
                 if page is None:
                     break
 
