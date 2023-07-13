@@ -22,7 +22,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
-from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.sql.expression import ColumnElement, literal_column
 from sqlalchemy.sql.selectable import Select
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
@@ -441,7 +441,6 @@ def get_page(
     return orm_get_page(query, per_page, place, backwards)
 
 
-# Do we need to support python 3.6?
 @dataclass
 class PageRequest(Generic[_TP]):
     """See ``get_page()`` documentation for parameter explanations."""
@@ -452,7 +451,7 @@ class PageRequest(Generic[_TP]):
     page: Optional[Union[MarkerLike, str]] = None
     
 
-def get_homogeneous_page(queries: list[PageRequest[_TP]]) -> list[Page[Row[_TP]]]:
+def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP]]]:
     """Get multiple pages of results for homogeneous legacy ORM queries.
 
     This only involves a single round trip to the database. To do that, under the
@@ -462,59 +461,61 @@ def get_homogeneous_page(queries: list[PageRequest[_TP]]) -> list[Page[Row[_TP]]
 
     Resulting pages are returned in the same order as the original page requests.
     """
-    if not queries:
+    if not requests:
         return []
 
-    paging_queries = [_prepare_homogeneous_page(query, i) for i, query in enumerate(queries)]
+    prepared_queries = [_prepare_homogeneous_page(request, i) for i, query in enumerate(requests)]
 
-    query = paging_queries[0].query.query
-    query = query.union_all(*[q.query.query for q in paging_queries[1:]])
+    query = prepared_queries[0].paging_query.query
+    query = query.union_all(*[p.prepared_query.query for p in prepared_queries[1:]])
 
     results = query.all()
 
     # We need to make sure there's an entry for every page in case some return
     # empty.
-    page_to_rows = {i: list() for i in range(len(queries))}
+    page_to_rows = {i: list() for i in range(len(requests))}
     for row in results:
         page_to_rows[row._page_identifier].append(row)
 
     pages = []
-    for i in range(len(queries)):
+    for i in range(len(requests)):
         rows = page_to_rows[i]
-        pages.append(paging_queries[i].page_from_rows(rows))
+        pages.append(prepared_queries[i].page_from_rows(rows))
+    return pages
 
 
 @dataclass
-class _HomogeneousPagingQuery:
-    query: _PagingQuery
+class _PreparedQuery:
+    paging_query: _PagingQuery
     page_from_rows: Callable[[list[Row[_TP]]], Page[Row[_TP]]]
 
 
 def _prepare_homogeneous_page(
-        query: PageRequest[_TP], page_identifier: int
-) -> _HomogeneousPagingQuery:
+        request: PageRequest[_TP], page_identifier: int
+) -> _PreparedQuery:
     """page_identifier MUST be a trusted int, as it is not escaped."""
     # Should have no effect if called correctly, but let's be extra safe.
     page_identifier = int(page_identifier)
-    place, backwards = process_args(query.after, query.before, query.page)
+    place, backwards = process_args(request.after, request.before, request.page)
 
     # Grab result_type and keys before adding the _page_identifier so that
     # it isn't included in the results.
-    result_type = orm_result_type(query.query)
-    keys = orm_query_keys(query.query)
-    query.query = query.query.add_columns(
-        sa.sql.expression.literal_column(str(page_identifier)).label("_page_identifier")
+    query = request.query
+    result_type = orm_result_type(query)
+    keys = orm_query_keys(query)
+    query = query.add_columns(
+        literal_column(str(page_identifier)).label("_page_identifier")
     )
 
     # Could we order by page identifier to do the page collation in the DB?
 
     paging_query = prepare_paging(
-        q=query.query,
-        per_page=query.per_page,
+        q=query,
+        per_page=request.per_page,
         place=place,
         backwards=backwards,
         orm=True,
-        dialect=query.query.session.get_bind().dialect,
+        dialect=query.session.get_bind().dialect,
     )
 
     def page_from_rows(rows):
@@ -522,4 +523,4 @@ def _prepare_homogeneous_page(
             paging_query, rows, keys, result_type, per_page, backwards, current_place=place
         )
 
-    return _HomogeneousPagingQuery(query=paging_query, page_from_rows=page_from_rows)
+    return _PreparedQuery(paging_query=paging_query, page_from_rows=page_from_rows)

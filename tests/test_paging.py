@@ -14,10 +14,11 @@ docker containers. (Available python versions are 3.7, 3.8, 3.9, 3.10, 3.11 and
 valid sqlalchemy versions are 1.3.0, 1.4.0, 2.0.0.)"""
 import warnings
 from packaging import version
+from typing import Any
 
 import pytest
 import sqlalchemy
-from sqlalchemy.orm import sessionmaker, aliased, Bundle
+from sqlalchemy.orm import sessionmaker, aliased, Bundle, Query
 from sqlalchemy import (
     desc,
     func,
@@ -25,12 +26,16 @@ from sqlalchemy import (
 
 from sqlakeyset import (
     get_page,
+    get_homogeneous_pages,
     select_page,
     serialize_bookmark,
     unserialize_bookmark,
     InvalidPage,
+    PageRequest,
 )
 from sqlakeyset.paging import process_args
+from sqlakeyset.results import Page
+from sqlakeyset.types import MarkerLike
 from conftest import (
     Book,
     Author,
@@ -49,6 +54,76 @@ from conftest import (
 warnings.simplefilter("error")
 
 
+@dataclass
+class _PageTracker:
+    query: Query
+    unpaged: list
+    gathered: list
+    backwards: bool
+    page: tuple[MarkerLike | str, bool]
+    page_with_paging: Page | None = None
+
+
+def assert_paging_orm(page_with_paging, gathered, backwards, unpaged):
+    """Returns the next page, or None if no further pages."""
+    paging = page_with_paging.paging
+
+    assert paging.current == page
+
+    if backwards:
+        gathered = page_with_paging + gathered
+    else:
+        gathered = gathered + page_with_paging
+
+    if len(gathered) < len(unpaged):
+        # Ensure each page is the correct size
+        assert paging.has_further
+        assert len(page_with_paging) == per_page
+    else:
+        assert not paging.has_further
+
+    if not page_with_paging:
+        assert not paging.has_further
+        assert paging.further == paging.current
+        assert paging.current_opposite == (None, not paging.backwards)
+        # Is this return None necessary or will paging.further just be None?
+        return None
+
+    return paging.further
+
+
+def check_multiple_paging_orm(qs):
+    page_trackers = [
+        _PageTracker(
+            query=q,
+            gathered=[],
+            backwards=(i % 2 == 0),
+            page=(None, i % 2 == 0),
+            unpaged=q.all(),
+        )
+        for q in qs
+    ]
+    while True:
+        for t in page_tackers:
+            t.page = unserialize_bookmark(serialize_bookmark(t.page))
+
+        page_requests = [
+            PageRequest(query=t.query, per_page=i, page=t.page) for i, t in enumerate(page_trackers)
+        ]
+        pages_with_paging = get_homogeneous_pages(page_requests)
+        for p, t in zip(pages_with_paging, page_trackers):
+            page_trackers.page_with_paging = p
+
+        for t in list(page_tackers):
+            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged)
+            if page is None:
+                # Ensure union of pages is original q.all()
+                assert t.gathered == t.unpaged
+                page_trackers.remove(t)
+
+            t.page = page
+
+
 def check_paging_orm(q):
     item_counts = range(1, 12)
 
@@ -65,28 +140,8 @@ def check_paging_orm(q):
                 page = unserialize_bookmark(serialized_page)
 
                 page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
-                paging = page_with_paging.paging
-
-                assert paging.current == page
-
-                if backwards:
-                    gathered = page_with_paging + gathered
-                else:
-                    gathered = gathered + page_with_paging
-
-                page = paging.further
-
-                if len(gathered) < len(unpaged):
-                    # Ensure each page is the correct size
-                    assert paging.has_further
-                    assert len(page_with_paging) == per_page
-                else:
-                    assert not paging.has_further
-
-                if not page_with_paging:
-                    assert not paging.has_further
-                    assert paging.further == paging.current
-                    assert paging.current_opposite == (None, not paging.backwards)
+                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged)
+                if page is None:
                     break
 
             # Ensure union of pages is original q.all()
@@ -359,6 +414,16 @@ def test_orm_joined_inheritance(joined_inheritance_dburl):
             Mammal.nipple_count, Mammal.leg_count, Vertebrate.vertebra_count, Animal.id
         )
         check_paging_orm(q=q)
+
+
+def test_orm_multiple_pages(dburl):
+    with S(dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Animal).order_by(Animal.leg_count, Animal.id),
+            s.query(Animal).filter(Animal.leg_count == 4).order_by(Animal.id),
+            s.query(Animal).order_by(Animal.leg_count, Animal.id.desc()),
+        ]
+    check_multiple_paging_orm(qs=qs)
 
 
 def test_core(dburl):
