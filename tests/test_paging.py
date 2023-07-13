@@ -65,15 +65,18 @@ class _PageTracker:
 
 
 def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page):
-    """Returns the next page, or None if no further pages."""
+    """Returns the next page, or None if no further pages.
+
+    Modifies gathered in place.
+    """
     paging = page_with_paging.paging
 
     assert paging.current == page
 
     if backwards:
-        gathered = page_with_paging + gathered
+        gathered[:0] = page_with_paging + gathered
     else:
-        gathered = gathered + page_with_paging
+        gathered.extend(page_with_paging)
 
     if len(gathered) < len(unpaged):
         # Ensure each page is the correct size
