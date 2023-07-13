@@ -469,7 +469,7 @@ def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP
     prepared_queries = [_prepare_homogeneous_page(request, i) for i, request in enumerate(requests)]
 
     query = prepared_queries[0].paging_query.query
-    query = query.union_all(*[p.prepared_query.query for p in prepared_queries[1:]])
+    query = query.union_all(*[p.paging_query.query for p in prepared_queries[1:]])
 
     results = query.all()
 

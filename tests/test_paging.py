@@ -15,7 +15,7 @@ valid sqlalchemy versions are 1.3.0, 1.4.0, 2.0.0.)"""
 import warnings
 from dataclasses import dataclass
 from packaging import version
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import pytest
 import sqlalchemy
@@ -62,7 +62,7 @@ class _PageTracker:
     gathered: list
     backwards: bool
     page: Tuple[Union[MarkerLike, str], bool]
-    page_with_paging: Page | None = None
+    page_with_paging: Optional[Page] = None
 
 
 def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page):
