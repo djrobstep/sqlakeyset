@@ -6,6 +6,8 @@ from functools import partial
 from dataclasses import dataclass
 from typing import (
     Any,
+    Callable,
+    Generic,
     List,
     NamedTuple,
     Optional,
@@ -449,7 +451,7 @@ class PageRequest(Generic[_TP]):
     after: OptionalKeyset = None
     before: OptionalKeyset = None
     page: Optional[Union[MarkerLike, str]] = None
-    
+
 
 def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP]]]:
     """Get multiple pages of results for homogeneous legacy ORM queries.
@@ -464,7 +466,7 @@ def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP
     if not requests:
         return []
 
-    prepared_queries = [_prepare_homogeneous_page(request, i) for i, query in enumerate(requests)]
+    prepared_queries = [_prepare_homogeneous_page(request, i) for i, request in enumerate(requests)]
 
     query = prepared_queries[0].paging_query.query
     query = query.union_all(*[p.prepared_query.query for p in prepared_queries[1:]])
@@ -520,7 +522,7 @@ def _prepare_homogeneous_page(
 
     def page_from_rows(rows):
         return orm_page_from_rows(
-            paging_query, rows, keys, result_type, per_page, backwards, current_place=place
+            paging_query, rows, keys, result_type, request.per_page, backwards, current_place=place
         )
 
     return _PreparedQuery(paging_query=paging_query, page_from_rows=page_from_rows)
