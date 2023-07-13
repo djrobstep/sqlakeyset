@@ -1,4 +1,4 @@
-from .paging import get_homogeneous_pages, get_page, select_page, InvalidPage
+from .paging import get_homogeneous_pages, get_page, select_page, InvalidPage, PageRequest
 from .results import (
     Page,
     Paging,
@@ -21,6 +21,7 @@ __all__ = [
     "serialize_bookmark",
     "unserialize_bookmark",
     "Page",
+    "PageRequest",
     "Paging",
     "Keyset",
     "Marker",
