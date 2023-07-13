@@ -439,8 +439,7 @@ def test_orm_multiple_pages_one_query(dburl):
 
 
 def test_orm_multiple_pages_empty_queries(dburl):
-    with S(dburl, echo=ECHO) as s:
-        assert get_homogeneous_pages([]) == []
+    assert get_homogeneous_pages([]) == []
 
 
 def test_core(dburl):
