@@ -461,6 +461,9 @@ def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP
     same columns. They may have different filters or ordering, but must result in
     selecting the same columns with the same names.
 
+    Note: This requires the underlying database to support ORDER BY and LIMIT
+    statements in components of a compound select, which SQLite does not.
+
     Resulting pages are returned in the same order as the original page requests.
     """
     if not requests:

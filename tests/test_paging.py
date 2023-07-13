@@ -420,7 +420,7 @@ def test_orm_joined_inheritance(joined_inheritance_dburl):
         check_paging_orm(q=q)
 
 
-def test_orm_multiple_pages(dburl):
+def test_orm_multiple_pages(no_sqlite_url):
     with S(dburl, echo=ECHO) as s:
         qs = [
             s.query(Book).order_by(Book.author_id, Book.id),
@@ -430,7 +430,7 @@ def test_orm_multiple_pages(dburl):
         check_multiple_paging_orm(qs=qs)
 
 
-def test_orm_multiple_pages_one_query(dburl):
+def test_orm_multiple_pages_one_query(no_sqlite_url):
     with S(dburl, echo=ECHO) as s:
         qs = [
             s.query(Book).order_by(Book.id),
@@ -438,7 +438,7 @@ def test_orm_multiple_pages_one_query(dburl):
         check_multiple_paging_orm(qs=qs)
 
 
-def test_orm_multiple_pages_empty_queries(dburl):
+def test_orm_multiple_pages_empty_queries():
     assert get_homogeneous_pages([]) == []
 
 
