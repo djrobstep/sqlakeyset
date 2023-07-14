@@ -24,7 +24,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
-from sqlalchemy.sql.expression import ColumnElement, literal_column
+from sqlalchemy.sql.expression import ColumnElement, literal
 from sqlalchemy.sql.selectable import Select
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
@@ -155,6 +155,7 @@ def prepare_paging(
     backwards: bool,
     orm: Literal[True],
     dialect: Dialect,
+    page_identifier: Optional[int] = None,
 ) -> _PagingQuery:
     ...
 
@@ -167,6 +168,7 @@ def prepare_paging(
     backwards: bool,
     orm: Literal[False],
     dialect: Dialect,
+    page_identifier: Optional[int] = None,
 ) -> _PagingSelect:
     ...
 
@@ -178,6 +180,7 @@ def prepare_paging(
     backwards: bool,
     orm: bool,
     dialect: Dialect,
+    page_identifier: Optional[int] = None,
 ) -> Union[_PagingQuery, _PagingSelect]:
     if orm:
         if not isinstance(q, Query):
@@ -206,6 +209,15 @@ def prepare_paging(
     extra_columns = [
         col.extra_column for col in mapped_ocols if col.extra_column is not None
     ]
+
+    # page_identifier is used for fetching multiple pages.
+    if page_identifier is not None:
+        extra_columns += [
+            literal(page_identifier).label("_page_identifier"),
+            func.ROW_NUMBER().over(
+                order_by=[c.uo for c in order_cols]
+            ).label("_row_number"),
+        ]
     if hasattr(q, "add_columns"):  # ORM or SQLAlchemy 1.4+
         q = q.add_columns(*extra_columns)
     else:
@@ -498,32 +510,11 @@ class _PreparedQuery:
 def _prepare_homogeneous_page(
         request: PageRequest[_TP], page_identifier: int
 ) -> _PreparedQuery:
-    """page_identifier MUST be a trusted int, as it is not escaped."""
-    # Should have no effect if called correctly, but let's be extra safe.
-    page_identifier = int(page_identifier)
     place, backwards = process_args(request.after, request.before, request.page)
 
-    # Grab result_type and keys before adding the _page_identifier so that
-    # it isn't included in the results. page_from_rows will slice the resulting
-    # row based on the length of keys
     query = request.query
     result_type = orm_result_type(query)
     keys = orm_query_keys(query)
-
-    # This is unfortunately duplicated with prepare_paging, but we need
-    # to get it to add the columns *before* we do the other query wrangling
-    # inside prepare_paging.
-    selectable = orm_to_selectable(query)
-    order_cols = parse_ob_clause(selectable)
-    if backwards:
-        order_cols = [c.reversed for c in order_cols]
-
-    query = query.add_columns(
-        literal_column(str(page_identifier)).label("_page_identifier"),
-        func.ROW_NUMBER().over(
-            order_by=[c.uo for c in order_cols]
-        ).label("_row_number")
-    )
 
     paging_query = prepare_paging(
         q=query,
@@ -532,9 +523,8 @@ def _prepare_homogeneous_page(
         backwards=backwards,
         orm=True,
         dialect=query.session.get_bind().dialect,
+        page_identifier=page_identifier,
     )
-    query = paging_query.query
-    paging_query = _PagingQuery(query, *paging_query[1:])
 
     def page_from_rows(rows):
         return orm_page_from_rows(
