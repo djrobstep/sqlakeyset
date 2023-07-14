@@ -532,7 +532,7 @@ def _prepare_homogeneous_page(
     query = query.add_columns(
         literal_column(str(page_identifier)).label("_page_identifier"),
         func.ROW_NUMBER().over(
-            order_by=[c.element for c in paging_query.order_columns]
+            order_by=[c.uo for c in paging_query.order_columns]
         ).label("_row_number")
     )
     paging_query = _PagingQuery(query, *paging_query[1:])
