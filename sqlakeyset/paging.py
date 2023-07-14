@@ -510,6 +510,14 @@ def _prepare_homogeneous_page(
     result_type = orm_result_type(query)
     keys = orm_query_keys(query)
 
+    # This is unfortunately duplicated with prepare_paging, but we need 
+    """
+    selectable = orm_to_selectable(query)
+    order_cols = parse_ob_clause(selectable)
+    if backwards:
+        order_cols = [c.reversed for c in order_cols]
+    """
+
     # Could we order by page identifier to do the page collation in the DB?
 
     paging_query = prepare_paging(
@@ -521,12 +529,13 @@ def _prepare_homogeneous_page(
         dialect=query.session.get_bind().dialect,
     )
     query = paging_query.query
-    paging_query.query = paging_query.query.add_columns(
+    query = query.add_columns(
         literal_column(str(page_identifier)).label("_page_identifier"),
         func.ROW_NUMBER().over(
             order_by=[c.element for c in paging_query.order_columns]
         ).label("_row_number")
     )
+    paging_query = _PagingQuery(query, *paging_query[1:])
 
     def page_from_rows(rows):
         return orm_page_from_rows(
