@@ -34,7 +34,6 @@ from sqlakeyset import (
     unserialize_bookmark,
     InvalidPage,
     OrmPageRequest,
-    PageRequest,
 )
 from sqlakeyset.paging import process_args
 from sqlakeyset.results import Page
@@ -158,7 +157,7 @@ def check_paging_orm(q):
             assert list(gathered) == unpaged
 
 
-def assert_paging_core(page_with_paging, gathered, backwards, unpaged, page, per_page):
+def assert_paging_core(page_with_paging, gathered, backwards, result, page, per_page):
     paging = page_with_paging.paging
 
     assert paging.current == page
@@ -197,7 +196,7 @@ def check_paging_core(selectable, s):
                 page_with_paging = select_page(
                     s, selectable, per_page=per_page, page=serialized_page
                 )
-                page = assert_paging_core(page_with_paging, gathered, backwards, unpaged, page, per_page)
+                page = assert_paging_core(page_with_paging, gathered, backwards, result, page, per_page)
                 if page is None:
                     break
 
