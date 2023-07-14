@@ -13,6 +13,7 @@ which will execute the tests for python 3.11 and sqlalchemy ~=2.0.0 using
 docker containers. (Available python versions are 3.7, 3.8, 3.9, 3.10, 3.11 and
 valid sqlalchemy versions are 1.3.0, 1.4.0, 2.0.0.)"""
 import warnings
+from collections import deque
 from dataclasses import dataclass
 from packaging import version
 from typing import Optional, Tuple, Union
@@ -59,7 +60,7 @@ warnings.simplefilter("error")
 class _PageTracker:
     query: Query
     unpaged: list
-    gathered: list
+    gathered: deque
     backwards: bool
     page: Tuple[Union[MarkerLike, str], bool]
     page_with_paging: Optional[Page] = None
@@ -75,7 +76,7 @@ def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_
     assert paging.current == page
 
     if backwards:
-        gathered[:0] = page_with_paging
+        gathered.extendleft(reversed(page_with_paging))
     else:
         gathered.extend(page_with_paging)
 
@@ -100,7 +101,7 @@ def check_multiple_paging_orm(qs):
     page_trackers = [
         _PageTracker(
             query=q,
-            gathered=[],
+            gathered=deque(),
             backwards=(i % 2 == 0),
             page=(None, i % 2 == 0),
             unpaged=q.all(),
@@ -122,7 +123,7 @@ def check_multiple_paging_orm(qs):
             page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i + 1)
             if page is None:
                 # Ensure union of pages is original q.all()
-                assert t.gathered == t.unpaged
+                assert list(t.gathered) == t.unpaged
                 page_trackers.remove(t)
 
             t.page = page
@@ -135,7 +136,7 @@ def check_paging_orm(q):
 
     for backwards in [False, True]:
         for per_page in item_counts:
-            gathered = []
+            gathered = deque()
 
             page = None, backwards
 
@@ -149,7 +150,7 @@ def check_paging_orm(q):
                     break
 
             # Ensure union of pages is original q.all()
-            assert gathered == unpaged
+            assert list(gathered) == unpaged
 
 
 def check_paging_core(selectable, s):
