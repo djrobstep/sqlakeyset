@@ -510,7 +510,7 @@ def _prepare_homogeneous_page(
     result_type = orm_result_type(query)
     keys = orm_query_keys(query)
 
-    # This is unfortunately duplicated with prepare_paging, but we need 
+    # This is unfortunately duplicated with prepare_paging, but we need
     """
     selectable = orm_to_selectable(query)
     order_cols = parse_ob_clause(selectable)
