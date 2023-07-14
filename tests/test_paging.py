@@ -16,7 +16,7 @@ import warnings
 from collections import deque
 from dataclasses import dataclass
 from packaging import version
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import pytest
 import sqlalchemy
@@ -25,6 +25,7 @@ from sqlalchemy import (
     desc,
     func,
 )
+from sqlalchemy.sql.selectable import Select
 
 from sqlakeyset import (
     get_page,
@@ -58,8 +59,9 @@ warnings.simplefilter("error")
 
 @dataclass
 class _PageTracker:
-    query: Query
+    query: Union[Query, Select]
     unpaged: list
+    selected: Any
     gathered: deque
     backwards: bool
     page: Tuple[Union[MarkerLike, str], bool]
@@ -97,6 +99,30 @@ def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_
     return paging.further
 
 
+def check_paging_orm(q):
+    item_counts = range(1, 12)
+
+    unpaged = q.all()
+
+    for backwards in [False, True]:
+        for per_page in item_counts:
+            gathered = deque()
+
+            page = None, backwards
+
+            while True:
+                serialized_page = serialize_bookmark(page)
+                page = unserialize_bookmark(serialized_page)
+
+                page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
+                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page)
+                if page is None:
+                    break
+
+            # Ensure union of pages is original q.all()
+            assert list(gathered) == unpaged
+
+
 def check_multiple_paging_orm(qs):
     page_trackers = [
         _PageTracker(
@@ -131,30 +157,6 @@ def check_multiple_paging_orm(qs):
 
         if not page_trackers:
             break
-
-
-def check_paging_orm(q):
-    item_counts = range(1, 12)
-
-    unpaged = q.all()
-
-    for backwards in [False, True]:
-        for per_page in item_counts:
-            gathered = deque()
-
-            page = None, backwards
-
-            while True:
-                serialized_page = serialize_bookmark(page)
-                page = unserialize_bookmark(serialized_page)
-
-                page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
-                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page)
-                if page is None:
-                    break
-
-            # Ensure union of pages is original q.all()
-            assert list(gathered) == unpaged
 
 
 def assert_paging_core(page_with_paging, gathered, backwards, result, page, per_page):
@@ -201,6 +203,43 @@ def check_paging_core(selectable, s):
                     break
 
             assert list(gathered) == unpaged
+
+
+def check_multiple_paging_core(qs, s):
+    page_trackers = [
+        _PageTracker(
+            query=q,
+            gathered=deque(),
+            backwards=(i % 2 == 0),
+            page=(None, i % 2 == 0),
+            selected=s.execute(q),
+            unpaged=s.execute(q).fetchall(),
+        )
+        for i, q in enumerate(qs)
+    ]
+    while True:
+        for t in page_trackers:
+            t.page = unserialize_bookmark(serialize_bookmark(t.page))
+
+        page_requests = [
+            PageRequest(selectable=t.query, per_page=i + 1, page=t.page) for i, t in enumerate(page_trackers)
+        ]
+        pages_with_paging = select_homogeneous_pages(page_requests, s)
+        for p, t in zip(pages_with_paging, page_trackers):
+            t.page_with_paging = p
+
+        for i, t in enumerate(list(page_trackers)):
+            page = assert_paging_core(t.page_with_paging, t.gathered, t.backwards, t.selected, t.page, i + 1)
+            if page is None:
+                # Ensure union of pages is original q.all()
+                assert list(t.gathered) == t.unpaged
+                page_trackers.remove(t)
+                continue
+
+            t.page = page
+
+        if not page_trackers:
+            break
 
 
 def test_orm_query1(dburl):
@@ -461,6 +500,38 @@ def test_orm_multiple_pages_one_query(no_sqlite_dburl):
 
 def test_orm_multiple_pages_empty_queries():
     assert get_homogeneous_pages([]) == []
+
+
+def test_core_multiple_pages(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book).order_by(Book.name, Book.id),
+            select(Book).filter(Book.author_id == 1).order_by(Book.id),
+            select(Book).order_by(Book.name, Book.id.desc()),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+def test_core_multiple_pages_select_columns(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id),
+            select(Book.name, Book.author_id, Book.id).filter(Book.author_id == 1).order_by(Book.id),
+            select(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id.desc()),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+def test_core_multiple_pages_one_query(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book).order_by(Book.id),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+def test_core_multiple_pages_empty_queries():
+    assert select_homogeneous_pages([]) == []
 
 
 def test_core(dburl):
