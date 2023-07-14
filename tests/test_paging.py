@@ -507,9 +507,9 @@ def test_orm_multiple_pages_empty_queries():
 def test_core_multiple_pages(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
-            select(Book).order_by(Book.name, Book.id),
-            select(Book).where(Book.author_id == 1).order_by(Book.id),
-            select(Book).order_by(Book.name, Book.id.desc()),
+            select(Book.name).order_by(Book.name, Book.id),
+            select(Book.name).where(Book.author_id == 1).order_by(Book.id),
+            select(Book.name).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_core(qs=qs, s=s)
 
@@ -527,7 +527,7 @@ def test_core_multiple_pages_select_columns(no_sqlite_dburl):
 def test_core_multiple_pages_one_query(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
-            select(Book).order_by(Book.id),
+            select(Book.a, Book.b).order_by(Book.id),
         ]
         check_multiple_paging_core(qs=qs, s=s)
 
