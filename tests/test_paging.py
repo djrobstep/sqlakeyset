@@ -81,7 +81,6 @@ def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_
         gathered.extend(page_with_paging)
 
     if len(gathered) < len(unpaged):
-        print(f"{len(gathered)} < {len(unpaged)}")
         # Ensure each page is the correct size
         assert len(page_with_paging) == per_page
         assert paging.has_further
@@ -114,15 +113,14 @@ def check_multiple_paging_orm(qs):
             t.page = unserialize_bookmark(serialize_bookmark(t.page))
 
         page_requests = [
-            PageRequest(query=t.query, per_page=i + 2, page=t.page) for i, t in enumerate(page_trackers)
+            PageRequest(query=t.query, per_page=i + 1, page=t.page) for i, t in enumerate(page_trackers)
         ]
         pages_with_paging = get_homogeneous_pages(page_requests)
         for p, t in zip(pages_with_paging, page_trackers):
             t.page_with_paging = p
-            print(p)
 
         for i, t in enumerate(list(page_trackers)):
-            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i + 2)
+            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i + 1)
             if page is None:
                 # Ensure union of pages is original q.all()
                 assert list(t.gathered) == t.unpaged
@@ -433,6 +431,16 @@ def test_orm_multiple_pages(no_sqlite_dburl):
             s.query(Book).order_by(Book.name, Book.id),
             s.query(Book).filter(Book.author_id == 1).order_by(Book.id),
             s.query(Book).order_by(Book.name, Book.id.desc()),
+        ]
+        check_multiple_paging_orm(qs=qs)
+
+
+def test_orm_multiple_pages_select_columns(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Book).order_by(Book.name, Book.id),
+            s.query(Book.name, Book.id).filter(Book.author_id == 1).order_by(Book.id),
+            s.query(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_orm(qs=qs)
 

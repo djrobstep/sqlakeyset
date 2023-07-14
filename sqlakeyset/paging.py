@@ -504,12 +504,15 @@ def _prepare_homogeneous_page(
     place, backwards = process_args(request.after, request.before, request.page)
 
     # Grab result_type and keys before adding the _page_identifier so that
-    # it isn't included in the results.
+    # it isn't included in the results. page_from_rows will slice the resulting
+    # row based on the length of keys
     query = request.query
     result_type = orm_result_type(query)
     keys = orm_query_keys(query)
 
     # This is unfortunately duplicated with prepare_paging, but we need
+    # to get it to add the columns *before* we do the other query wrangling
+    # inside prepare_paging.
     selectable = orm_to_selectable(query)
     order_cols = parse_ob_clause(selectable)
     if backwards:
@@ -521,7 +524,6 @@ def _prepare_homogeneous_page(
             order_by=[c.uo for c in order_cols]
         ).label("_row_number")
     )
-    # Could we order by page identifier to do the page collation in the DB?
 
     paging_query = prepare_paging(
         q=query,
