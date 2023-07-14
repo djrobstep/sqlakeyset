@@ -19,7 +19,7 @@ from typing import (
 )
 from typing_extensions import Literal  # to keep python 3.7 support
 
-from sqlalchemy import tuple_, and_, or_
+from sqlalchemy import tuple_, and_, or_, func, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
@@ -472,8 +472,9 @@ def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP
     prepared_queries = [_prepare_homogeneous_page(request, i) for i, request in enumerate(requests)]
 
     query = prepared_queries[0].paging_query.query
-    query = query.union_all(*[p.paging_query.query for p in prepared_queries[1:]])
+    query = query.union_all(*[p.paging_query.query for p in prepared_queries[1:]]).order_by(text("_page_identifier"), text("_row_number"))
 
+    print(query)
     results = query.all()
 
     # We need to make sure there's an entry for every page in case some return
@@ -508,9 +509,6 @@ def _prepare_homogeneous_page(
     query = request.query
     result_type = orm_result_type(query)
     keys = orm_query_keys(query)
-    query = query.add_columns(
-        literal_column(str(page_identifier)).label("_page_identifier")
-    )
 
     # Could we order by page identifier to do the page collation in the DB?
 
@@ -521,6 +519,13 @@ def _prepare_homogeneous_page(
         backwards=backwards,
         orm=True,
         dialect=query.session.get_bind().dialect,
+    )
+    query = paging_query.query
+    paging_query.query = paging_query.query.add_columns(
+        literal_column(str(page_identifier)).label("_page_identifier"),
+        func.ROW_NUMBER().over(
+            order_by=[c.element for c in paging_query.order_columns]
+        ).label("_row_number")
     )
 
     def page_from_rows(rows):
