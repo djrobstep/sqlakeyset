@@ -426,9 +426,9 @@ def test_orm_joined_inheritance(joined_inheritance_dburl):
 def test_orm_multiple_pages(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
-            s.query(Book).order_by(Book.author_id, Book.id),
+            s.query(Book).order_by(Book.name, Book.id),
             s.query(Book).filter(Book.author_id == 1).order_by(Book.id),
-            s.query(Book).order_by(Book.author_id, Book.id.desc()),
+            s.query(Book).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_orm(qs=qs)
 
