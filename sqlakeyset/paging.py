@@ -24,7 +24,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
-from sqlalchemy.sql.expression import ColumnElement, literal
+from sqlalchemy.sql.expression import ColumnElement, literal, union_all
 from sqlalchemy.sql.selectable import Select
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
@@ -537,10 +537,12 @@ def select_homogeneous_pages(
 
     prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
 
-    select = union_all(*[p.paging_query.select for p in prepared_queries])
-    selected = s.execute(sel.select)
+    select = union_all(
+        *[p.paging_query.select for p in prepared_queries]
+    ).order_by(text("_page_identifier"), text("_row_number"))
+    selected = s.execute(select)
 
-    results = query.fetchall()
+    results = selected.fetchall()
 
     # We need to make sure there's an entry for every page in case some return
     # empty.
@@ -576,6 +578,7 @@ def _core_prepare_homogeneous_page(
         orm=False,
         dialect=get_bind(q=selectable, s=s).dialect,
     )
+
     def page_from_rows(rows, selected):
         keys = list(selected.keys())
         N = len(keys) - len(sel.extra_columns)
