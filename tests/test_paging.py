@@ -438,8 +438,8 @@ def test_orm_multiple_pages(no_sqlite_dburl):
 def test_orm_multiple_pages_select_columns(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
-            s.query(Book).order_by(Book.name, Book.id),
-            s.query(Book.name, Book.id).filter(Book.author_id == 1).order_by(Book.id),
+            s.query(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id),
+            s.query(Book.name, Book.author_id, Book.id).filter(Book.author_id == 1).order_by(Book.id),
             s.query(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_orm(qs=qs)
