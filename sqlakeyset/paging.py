@@ -577,6 +577,7 @@ def _core_prepare_homogeneous_page(
         backwards=backwards,
         orm=False,
         dialect=get_bind(q=selectable, s=s).dialect,
+        page_identifier=page_identifier,
     )
 
     def page_from_rows(rows, selected):
