@@ -114,14 +114,15 @@ def check_multiple_paging_orm(qs):
             t.page = unserialize_bookmark(serialize_bookmark(t.page))
 
         page_requests = [
-            PageRequest(query=t.query, per_page=i + 1, page=t.page) for i, t in enumerate(page_trackers)
+            PageRequest(query=t.query, per_page=i + 2, page=t.page) for i, t in enumerate(page_trackers)
         ]
         pages_with_paging = get_homogeneous_pages(page_requests)
         for p, t in zip(pages_with_paging, page_trackers):
             t.page_with_paging = p
+            print(p)
 
         for i, t in enumerate(list(page_trackers)):
-            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i + 1)
+            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i + 2)
             if page is None:
                 # Ensure union of pages is original q.all()
                 assert list(t.gathered) == t.unpaged
