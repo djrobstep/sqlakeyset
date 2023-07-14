@@ -63,7 +63,7 @@ warnings.simplefilter("error")
 class _PageTracker:
     query: Union[Query, Select]
     unpaged: list
-    selected: Any
+    selected: Any = None
     gathered: deque
     backwards: bool
     page: Tuple[Union[MarkerLike, str], bool]
