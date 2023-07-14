@@ -81,9 +81,10 @@ def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_
         gathered.extend(page_with_paging)
 
     if len(gathered) < len(unpaged):
+        print(f"{len(gathered)} < {len(unpaged)}")
         # Ensure each page is the correct size
-        assert paging.has_further
         assert len(page_with_paging) == per_page
+        assert paging.has_further
     else:
         assert not paging.has_further
 

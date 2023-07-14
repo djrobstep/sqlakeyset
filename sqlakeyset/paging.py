@@ -474,7 +474,6 @@ def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP
     query = prepared_queries[0].paging_query.query
     query = query.union_all(*[p.paging_query.query for p in prepared_queries[1:]]).order_by(text("_page_identifier"), text("_row_number"))
 
-    print(query)
     results = query.all()
 
     # We need to make sure there's an entry for every page in case some return
