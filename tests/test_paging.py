@@ -127,8 +127,12 @@ def check_multiple_paging_orm(qs):
                 # Ensure union of pages is original q.all()
                 assert list(t.gathered) == t.unpaged
                 page_trackers.remove(t)
+                continue
 
             t.page = page
+
+        if not page_trackers:
+            break
 
 
 def check_paging_orm(q):
