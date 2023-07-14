@@ -218,6 +218,7 @@ def prepare_paging(
                 order_by=[c.uo for c in order_cols]
             ).label("_row_number"),
         ]
+
     if hasattr(q, "add_columns"):  # ORM or SQLAlchemy 1.4+
         q = q.add_columns(*extra_columns)
     else:
@@ -582,6 +583,7 @@ def _core_prepare_homogeneous_page(
 
     def page_from_rows(rows, selected):
         keys = list(selected.keys())
+        print(keys)
         N = len(keys) - len(sel.extra_columns)
         keys = keys[:N]
         page = core_page_from_rows(

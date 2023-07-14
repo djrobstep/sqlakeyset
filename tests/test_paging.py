@@ -508,7 +508,7 @@ def test_core_multiple_pages(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
             select(Book).order_by(Book.name, Book.id),
-            select(Book).filter(Book.author_id == 1).order_by(Book.id),
+            select(Book).where(Book.author_id == 1).order_by(Book.id),
             select(Book).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_core(qs=qs, s=s)
@@ -518,7 +518,7 @@ def test_core_multiple_pages_select_columns(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
             select(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id),
-            select(Book.name, Book.author_id, Book.id).filter(Book.author_id == 1).order_by(Book.id),
+            select(Book.name, Book.author_id, Book.id).where(Book.author_id == 1).order_by(Book.id),
             select(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_core(qs=qs, s=s)
