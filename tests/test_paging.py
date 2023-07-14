@@ -33,6 +33,7 @@ from sqlakeyset import (
     serialize_bookmark,
     unserialize_bookmark,
     InvalidPage,
+    OrmPageRequest,
     PageRequest,
 )
 from sqlakeyset.paging import process_args
@@ -113,7 +114,7 @@ def check_multiple_paging_orm(qs):
             t.page = unserialize_bookmark(serialize_bookmark(t.page))
 
         page_requests = [
-            PageRequest(query=t.query, per_page=i + 1, page=t.page) for i, t in enumerate(page_trackers)
+            OrmPageRequest(query=t.query, per_page=i + 1, page=t.page) for i, t in enumerate(page_trackers)
         ]
         pages_with_paging = get_homogeneous_pages(page_requests)
         for p, t in zip(pages_with_paging, page_trackers):
@@ -157,6 +158,26 @@ def check_paging_orm(q):
             assert list(gathered) == unpaged
 
 
+def assert_paging_core(page_with_paging, gathered, backwards, unpaged, page, per_page):
+    paging = page_with_paging.paging
+
+    assert paging.current == page
+    assert page_with_paging.keys() == result.keys()
+
+    if backwards:
+        gathered.extendleft(reversed(page_with_paging))
+    else:
+        gathered.extend(page_with_paging)
+
+    if not page_with_paging:
+        assert not paging.has_further
+        assert paging.further == paging.current
+        assert paging.current_opposite == (None, not paging.backwards)
+        return None
+
+    return paging.further
+
+
 def check_paging_core(selectable, s):
     item_counts = range(1, 12)
 
@@ -165,7 +186,7 @@ def check_paging_core(selectable, s):
 
     for backwards in [False, True]:
         for per_page in item_counts:
-            gathered = []
+            gathered = deque()
 
             page = None, backwards
 
@@ -176,22 +197,8 @@ def check_paging_core(selectable, s):
                 page_with_paging = select_page(
                     s, selectable, per_page=per_page, page=serialized_page
                 )
-                paging = page_with_paging.paging
-
-                assert paging.current == page
-                assert page_with_paging.keys() == result.keys()
-
-                if backwards:
-                    gathered = page_with_paging + gathered
-                else:
-                    gathered = gathered + page_with_paging
-
-                page = paging.further
-
-                if not page_with_paging:
-                    assert not paging.has_further
-                    assert paging.further == paging.current
-                    assert paging.current_opposite == (None, not paging.backwards)
+                page = assert_paging_core(page_with_paging, gathered, backwards, unpaged, page, per_page)
+                if page is None:
                     break
 
             assert gathered == unpaged

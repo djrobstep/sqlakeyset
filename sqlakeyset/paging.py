@@ -291,11 +291,13 @@ def core_get_page(
     :param backwards: If ``True``, reverse pagination direction.
     :returns: :class:`Page`
     """
-    # We need the result schema for the *original* query in order to properly
-    # trim off our extra_columns. As far as I can tell, this is the only
+    # In SQLAlchemy 1.3, we need the result schema for the *original* query in order
+    # to properly trim off our extra_columns. As far as I can tell, this is the only
     # way to get it without copy-pasting chunks of the sqlalchemy internals.
     # LIMIT 0 to minimize database load (though the fact that a round trip to
     # the DB has to happen at all is regrettable).
+    #
+    # Thankfully this is obsolete in 1.4+
     result_type = core_result_type(selectable, s)
     sel = prepare_paging(
         q=selectable,
@@ -456,7 +458,7 @@ def get_page(
 
 
 @dataclass
-class PageRequest(Generic[_TP]):
+class OrmPageRequest(Generic[_TP]):
     """See ``get_page()`` documentation for parameter explanations."""
     query: Query[_TP]
     per_page: int = PER_PAGE_DEFAULT
@@ -465,7 +467,17 @@ class PageRequest(Generic[_TP]):
     page: Optional[Union[MarkerLike, str]] = None
 
 
-def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP]]]:
+@dataclass
+class PageRequest(Generic[_TP]):
+    """See ``select_page()`` documentation for parameter explanations."""
+    selectable: Select[_TP]
+    per_page: int = PER_PAGE_DEFAULT
+    after: OptionalKeyset = None
+    before: OptionalKeyset = None
+    page: Optional[Union[MarkerLike, str]] = None
+
+
+def get_homogeneous_pages(requests: list[OrmPageRequest[_TP]]) -> list[Page[Row[_TP]]]:
     """Get multiple pages of results for homogeneous legacy ORM queries.
 
     This only involves a single round trip to the database. To do that, under the
@@ -481,10 +493,14 @@ def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP
     if not requests:
         return []
 
-    prepared_queries = [_prepare_homogeneous_page(request, i) for i, request in enumerate(requests)]
+    prepared_queries = [
+        _orm_prepare_homogeneous_page(request, i) for i, request in enumerate(requests)
+    ]
 
     query = prepared_queries[0].paging_query.query
-    query = query.union_all(*[p.paging_query.query for p in prepared_queries[1:]]).order_by(text("_page_identifier"), text("_row_number"))
+    query = query.union_all(
+        *[p.paging_query.query for p in prepared_queries[1:]]
+    ).order_by(text("_page_identifier"), text("_row_number"))
 
     results = query.all()
 
@@ -501,14 +517,85 @@ def get_homogeneous_pages(requests: list[PageRequest[_TP]]) -> list[Page[Row[_TP
     return pages
 
 
+def select_homogeneous_pages(
+    requests: list[PageRequest[_TP]], s: Union[Session, Connection]
+) -> list[Page[Row[_TP]]]:
+    """Get multiple pages of results for homogeneous legacy ORM queries.
+
+    This only involves a single round trip to the database. To do that, under the
+    hood it generates a UNION ALL. That means each query must select exactly the
+    same columns. They may have different filters or ordering, but must result in
+    selecting the same columns with the same names.
+
+    Note: This requires the underlying database to support ORDER BY and LIMIT
+    statements in components of a compound select, which SQLite does not.
+
+    Resulting pages are returned in the same order as the original page requests.
+    """
+    if not requests:
+        return []
+
+    prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
+
+    select = union_all(*[p.paging_query.select for p in prepared_queries])
+    selected = s.execute(sel.select)
+
+    results = query.fetchall()
+
+    # We need to make sure there's an entry for every page in case some return
+    # empty.
+    page_to_rows = {i: list() for i in range(len(requests))}
+    for row in results:
+        page_to_rows[row._page_identifier].append(row)
+
+    pages = []
+    for i in range(len(requests)):
+        rows = page_to_rows[i]
+        pages.append(prepared_queries[i].page_from_rows(rows, selected))
+    return pages
+
+
 @dataclass
 class _PreparedQuery:
-    paging_query: _PagingQuery
-    page_from_rows: Callable[[list[Row[_TP]]], Page[Row[_TP]]]
+    paging_query: Union[_PagingQuery, _PagingSelect]
+    page_from_rows: Callable[..., Page[Row[_TP]]]
 
 
-def _prepare_homogeneous_page(
-        request: PageRequest[_TP], page_identifier: int
+def _core_prepare_homogeneous_page(
+    request: PageRequest[_TP], s: Union[Session, Connection], page_identifier: int
+) -> _PreparedQuery:
+    place, backwards = process_args(request.after, request.before, request.page)
+
+    selectable = request.selectable
+    result_type = core_result_type(selectable, s)
+    sel = prepare_paging(
+        q=selectable,
+        per_page=request.per_page,
+        place=place,
+        backwards=backwards,
+        orm=False,
+        dialect=get_bind(q=selectable, s=s).dialect,
+    )
+    def page_from_rows(rows, selected):
+        keys = list(selected.keys())
+        N = len(keys) - len(sel.extra_columns)
+        keys = keys[:N]
+        page = core_page_from_rows(
+            sel,
+            rows,
+            keys,
+            result_type,
+            request.per_page,
+            backwards,
+            current_place=place,
+        )
+        return page
+
+    return _PreparedQuery(paging_query=sel, page_from_rows=page_from_rows)
+
+
+def _orm_prepare_homogeneous_page(
+    request: OrmPageRequest[_TP], page_identifier: int
 ) -> _PreparedQuery:
     place, backwards = process_args(request.after, request.before, request.page)
 

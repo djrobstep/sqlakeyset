@@ -1,4 +1,4 @@
-from .paging import get_homogeneous_pages, get_page, select_page, InvalidPage, PageRequest
+from .paging import get_homogeneous_pages, get_page, select_homogeneous_pages, select_page, InvalidPage, OrmPageRequest, PageRequest
 from .results import (
     Page,
     Paging,
