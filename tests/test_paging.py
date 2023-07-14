@@ -200,7 +200,7 @@ def check_paging_core(selectable, s):
                 if page is None:
                     break
 
-            assert gathered == unpaged
+            assert list(gathered) == unpaged
 
 
 def test_orm_query1(dburl):
