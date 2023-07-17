@@ -103,6 +103,32 @@ def test_subclass():
     assert _uuid == "uuid:939d4cc9-830d-4cca-bd74-3ec3d541a9b3"
 
 
+def test_subclass_mro_order():
+    class A:
+        pass
+
+    class B:
+        pass
+
+    class C(A, B):
+        pass
+
+    class CaughtException(Exception):
+        pass
+
+    def fail(x):
+        raise CaughtException()
+
+    s.register_type(A, code="a", deserializer=fail, serializer=fail)
+    s.register_type(B, code="b")
+
+    with raises(CaughtException):
+        s.serialize_value("test")
+
+    with raises(CaughtException):
+        s.unserialize_value("test")
+
+
 def test_serial():
     assert s.serialize_value(None) == "x"
     assert s.serialize_value(True) == "true"

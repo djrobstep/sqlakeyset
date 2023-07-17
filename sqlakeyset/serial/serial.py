@@ -84,30 +84,19 @@ TYPES = [
 ]
 
 
-class IDDict:
-    """Python's dict uses hash for implementation and True/False have
-    the same hash as 1/0. This version will only return the value if
-    the key `is` the key in the dict"""
-    def __init__(self, d_in):
-        self.d = {id(k): v for k, v in d_in.items()}
-
-    def __getitem__(self, item):
-        try:
-            return self.d[id(item)]
-        except KeyError:
-            raise KeyError(item)
-
-    def __setitem__(self, key, value):
-        self.d[id(key)] = value
-
-
 # These special values are serialized without prefix codes.
 BUILTINS = {
     "x": None,
     "true": True,
     "false": False,
 }
-BUILTINS_INV = IDDict({v: k for k, v in BUILTINS.items()})
+
+
+def invert_builtin(x) -> str:
+    for k, v in BUILTINS:
+        if x is v:
+            return k
+
 
 T = TypeVar("T")
 
@@ -176,7 +165,7 @@ class Serial(object):
 
     def serialize_value(self, x) -> str:
         with suppress(KeyError):
-            return BUILTINS_INV[x]
+            return invert_builtin(x)
 
         serializer = self.get_serializer(x)
 
