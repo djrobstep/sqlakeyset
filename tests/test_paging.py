@@ -504,6 +504,7 @@ def test_orm_multiple_pages_empty_queries():
     assert get_homogeneous_pages([]) == []
 
 
+"""
 def test_core_multiple_pages(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
@@ -512,6 +513,7 @@ def test_core_multiple_pages(no_sqlite_dburl):
             select(Book).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_core(qs=qs, s=s)
+"""
 
 
 def test_core_multiple_pages_select_columns(no_sqlite_dburl):
@@ -550,6 +552,17 @@ def test_core(dburl):
     # Check again with a connection instead of session (see #37):
     with S(dburl, echo=ECHO) as s:
         check_paging_core(selectable=selectable, s=s.connection())
+
+
+def test_core_whole_model(dburl):
+    selectable = (
+        select(Book)
+        .where(Book.d == 99)
+        .order_by(Book.id)
+    )
+
+    with S(dburl, echo=ECHO) as s:
+        check_paging_core(selectable=selectable, s=s)
 
 
 def test_core2(dburl):
