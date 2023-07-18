@@ -24,7 +24,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
-from sqlalchemy.sql.expression import ColumnElement, literal, union_all
+from sqlalchemy.sql.expression import ColumnElement, literal
 from sqlalchemy.sql.selectable import Select
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
