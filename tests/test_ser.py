@@ -119,14 +119,14 @@ def test_subclass_mro_order():
     def fail(x):
         raise CaughtException()
 
-    s.register_type(A, code="a", deserializer=fail, serializer=fail)
-    s.register_type(B, code="b")
+    s.register_type(A, code="sub1", deserializer=fail, serializer=fail)
+    s.register_type(B, code="sub2")
 
     with raises(CaughtException):
-        s.serialize_value("test")
+        s.serialize_value(C())
 
     with raises(CaughtException):
-        s.unserialize_value("test")
+        s.unserialize_value("sub1:test")
 
 
 def test_serial():
