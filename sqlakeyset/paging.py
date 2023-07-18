@@ -24,7 +24,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
-from sqlalchemy.sql.expression import ColumnElement, literal, union_all
+from sqlalchemy.sql.expression import ColumnElement, literal, select, union_all
 from sqlalchemy.sql.selectable import Select
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
@@ -538,20 +538,16 @@ def select_homogeneous_pages(
 
     prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
 
-    select = union_all(
+    selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
     )
     if len(requests) > 1:
-        select = select.order_by(text("_page_identifier"), text("_row_number"))
+        selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
 
-    print(f"Select statement: {select}")
-    mapped_order_columns = []
-    for p in prepared_queries:
-        paging_query = p.paging_query
-        for ocol in paging_query.order_columns:
-            corresponding_column = select.corresponding_column(ocol.element)
-            mapped_order_columns.append(find_order_key(OC(corresponding_column), select._raw_columns))
-    selected = s.execute(select)
+    print(f"Select statement: {selectable}")
+    selectable = select(selectable.selected_columns).select_from(selectable)
+    print(f"Select from statement: {selectable}")
+    selected = s.execute(selectable)
 
     results = selected.fetchall()
 
