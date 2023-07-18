@@ -540,7 +540,10 @@ def select_homogeneous_pages(
 
     select = union_all(
         *[p.paging_query.select for p in prepared_queries]
-    ).order_by(text("_page_identifier"), text("_row_number"))
+    )
+    if len(prepared_queries) > 1:
+        select = select.order_by(text("_page_identifier"), text("_row_number"))
+
     selected = s.execute(select)
 
     results = selected.fetchall()
