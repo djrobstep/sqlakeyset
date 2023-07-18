@@ -538,15 +538,19 @@ def select_homogeneous_pages(
 
     prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
 
-    if len(requests) == 1:
-        select = prepared_queries[0].paging_query.select
-    else:
-        select = union_all(
-            *[p.paging_query.select for p in prepared_queries]
-        )
+    select = union_all(
+        *[p.paging_query.select for p in prepared_queries]
+    )
+    if len(requests) > 1:
         select = select.order_by(text("_page_identifier"), text("_row_number"))
 
     print(f"Select statement: {select}")
+    mapped_order_columns = []
+    for p in prepared_queries:
+        paging_query = p.paging_query
+        for ocol in paging_query.order_columns:
+            corresponding_column = select.corresponding_column(ocol.element)
+            mapped_order_columns.append(find_order_key(OC(corresponding_column), select.column_descriptions))
     selected = s.execute(select)
 
     results = selected.fetchall()
@@ -568,6 +572,8 @@ def select_homogeneous_pages(
     )
     for i in range(len(requests)):
         rows = page_to_rows[i]
+        key_rows = [tuple(col.get_from_row(row) for col in mapped_order_columns) for row in rows]
+        print(f"Key rows: {key_rows}")
         pages.append(prepared_queries[i].page_from_rows(rows, subselect_result))
     return pages
 
