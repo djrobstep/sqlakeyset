@@ -503,6 +503,7 @@ def test_orm_multiple_pages_one_query(no_sqlite_dburl):
 def test_orm_multiple_pages_empty_queries():
     assert get_homogeneous_pages([]) == []
 
+
 """
 def test_core_multiple_pages(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
@@ -523,6 +524,7 @@ def test_core_multiple_pages_select_columns(no_sqlite_dburl):
         ]
         check_multiple_paging_core(qs=qs, s=s)
 """
+
 
 def test_core_multiple_pages_one_query(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
