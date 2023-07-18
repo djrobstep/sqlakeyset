@@ -408,8 +408,8 @@ def derive_order_key(ocol, desc, index):
 
     # is an attribute with label
     try:
-        print(f"Attempting to match label: {ocol.quoted_full_name} / {OC(expr).full_name}")
-        if ocol.quoted_full_name == OC(expr).full_name:
+        print(f"Attempting to match label: {ocol.quoted_full_name} / {OC(expr).full_name} / {OC(expr).quoted_full_name}")
+        if ocol.quoted_full_name == OC(expr).quoted_full_name:
             return DirectColumn(ocol, index)
     except sqlalchemy.exc.ArgumentError:
         pass
