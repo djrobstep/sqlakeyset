@@ -567,8 +567,15 @@ def select_homogeneous_pages(
         s.execute(prepared_queries[0].paging_query.select)
         if len(prepared_queries) > 1 else selected
     )
+
     for i in range(len(requests)):
         rows = page_to_rows[i]
+        mapped_order_columns = []
+        for ocol in prepared_queries[i].paging_query.order_columns:
+            corresponding_column = selectable.corresponding_column(ocol.element)
+            mapped_order_columns.append(find_order_key(OC(corresponding_column), selectable._raw_columns))
+        key_rows = [tuple(col.get_from_row(row) for col in mapped_order_columns) for row in rows]
+        print(f"key_rows: {key_rows}")
         pages.append(prepared_queries[i].page_from_rows(rows, subselect_result))
     return pages
 
