@@ -550,7 +550,7 @@ def select_homogeneous_pages(
         paging_query = p.paging_query
         for ocol in paging_query.order_columns:
             corresponding_column = select.corresponding_column(ocol.element)
-            mapped_order_columns.append(find_order_key(OC(corresponding_column), select.column_descriptions))
+            mapped_order_columns.append(find_order_key(OC(corresponding_column), select._raw_columns))
     selected = s.execute(select)
 
     results = selected.fetchall()
