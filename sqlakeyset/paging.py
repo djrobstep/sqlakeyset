@@ -538,14 +538,10 @@ def select_homogeneous_pages(
 
     prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
 
-    """
     select = union_all(
         *[p.paging_query.select for p in prepared_queries]
     )
-    """
-    select = prepared_queries[0].paging_query.select
     if len(prepared_queries) > 1:
-        select = select.union_all(*[p.paging_query.select for p in prepared_queries[1:]])
         select = select.order_by(text("_page_identifier"), text("_row_number"))
 
     print(f"Select statement: {select}")
@@ -560,9 +556,17 @@ def select_homogeneous_pages(
         page_to_rows[row._page_identifier].append(row)
 
     pages = []
+    # This is an unfortunate side effect of union_all. It appears we union_all
+    # a bunch of selects, it changes the "keys" on us in cases where the column
+    # name and python attribute don't match. So we have to execute the first
+    # query standalone to ge the correct keys.
+    subselect_result = (
+        s.execute(prepared_queries[0].paging_query.select)
+        if len(prepared_queries) > 1 else selected
+    )
     for i in range(len(requests)):
         rows = page_to_rows[i]
-        pages.append(prepared_queries[i].page_from_rows(rows, s.execute(prepared_queries[i].paging_query.select)))
+        pages.append(prepared_queries[i].page_from_rows(rows, subselect_result))
     return pages
 
 
