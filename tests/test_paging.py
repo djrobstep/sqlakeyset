@@ -535,7 +535,8 @@ def test_core_multiple_pages_one_query(no_sqlite_dburl):
 
 
 def test_core_multiple_pages_empty_queries():
-    assert select_homogeneous_pages([]) == []
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        assert select_homogeneous_pages([], s) == []
 
 
 def test_core(dburl):
