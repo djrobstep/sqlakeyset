@@ -544,6 +544,7 @@ def select_homogeneous_pages(
     if len(prepared_queries) > 1:
         select = select.order_by(text("_page_identifier"), text("_row_number"))
 
+    print(f"Select statement: {select}")
     selected = s.execute(select)
 
     results = selected.fetchall()

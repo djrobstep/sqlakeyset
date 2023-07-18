@@ -513,6 +513,7 @@ def test_core_multiple_pages(no_sqlite_dburl):
             select(Book).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_core(qs=qs, s=s)
+"""
 
 
 def test_core_multiple_pages_select_columns(no_sqlite_dburl):
@@ -523,7 +524,6 @@ def test_core_multiple_pages_select_columns(no_sqlite_dburl):
             select(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id.desc()),
         ]
         check_multiple_paging_core(qs=qs, s=s)
-"""
 
 
 def test_core_multiple_pages_one_query(no_sqlite_dburl):
