@@ -558,7 +558,7 @@ def select_homogeneous_pages(
         page_to_rows[row._page_identifier].append(row)
 
     pages = []
-    # This is an unfortunate side effect of union_all. It appears we union_all
+    # This is an unfortunate side effect of union_all. It appears when we union_all
     # a bunch of selects, it changes the "keys" on us in cases where the column
     # name and python attribute don't match. So we have to execute the first
     # query standalone to ge the correct keys.
