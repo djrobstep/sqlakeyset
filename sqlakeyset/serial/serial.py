@@ -93,7 +93,7 @@ BUILTINS = {
 
 
 def invert_builtin(x) -> str:
-    for k, v in BUILTINS:
+    for k, v in BUILTINS.items():
         if x is v:
             return k
 
