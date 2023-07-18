@@ -92,11 +92,16 @@ BUILTINS = {
 }
 
 
+class NotABuiltin(Exception):
+    pass
+
+
 def invert_builtin(x) -> str:
     for k, v in BUILTINS.items():
         if x is v:
             return k
 
+    raise NotABuiltin()
 
 T = TypeVar("T")
 
@@ -164,7 +169,7 @@ class Serial(object):
         return None
 
     def serialize_value(self, x) -> str:
-        with suppress(KeyError):
+        with suppress(NotABuiltin):
             return invert_builtin(x)
 
         serializer = self.get_serializer(x)
