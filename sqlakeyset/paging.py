@@ -587,7 +587,8 @@ def _core_prepare_homogeneous_page(
         N = len(keys) - len(sel.extra_columns)
         keys = keys[:N]
         print(f"post-shrunk keys: {keys}")
-        print(rows[0])
+        if rows:
+            print(rows[0])
         page = core_page_from_rows(
             sel,
             rows,
