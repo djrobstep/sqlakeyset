@@ -568,8 +568,6 @@ def select_homogeneous_pages(
     )
     for i in range(len(requests)):
         rows = page_to_rows[i]
-        key_rows = [tuple(col.get_from_row(row) for col in mapped_order_columns) for row in rows]
-        print(f"Key rows: {key_rows}")
         pages.append(prepared_queries[i].page_from_rows(rows, subselect_result))
     return pages
 
