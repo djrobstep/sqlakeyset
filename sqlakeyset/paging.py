@@ -583,9 +583,10 @@ def _core_prepare_homogeneous_page(
 
     def page_from_rows(rows, selected):
         keys = list(selected.keys())
+        print(f"pre-shrunk keys: {keys}")
         N = len(keys) - len(sel.extra_columns)
         keys = keys[:N]
-        print(keys)
+        print(f"post-shrunk keys: {keys}")
         print(rows[0])
         page = core_page_from_rows(
             sel,
