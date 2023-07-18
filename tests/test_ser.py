@@ -135,7 +135,7 @@ def test_subclass_mro_order():
         s.serialize_value(D())
 
     with raises(CaughtExceptionA):
-        s.unserialize_value("sub1:test")
+        s.unserialize_value("suba:test")
 
 
 def test_serial():
