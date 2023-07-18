@@ -567,16 +567,24 @@ def select_homogeneous_pages(
         s.execute(prepared_queries[0].paging_query.select)
         if len(prepared_queries) > 1 else selected
     )
+    keys = list(subselect_result.keys())
+    print(f"pre-shrunk keys: {keys}")
+    N = len(keys) - len(prepared_queries[0].paging_query.extra_columns)
+    keys = keys[:N]
+    print(f"post-shrunk keys: {keys}")
 
     for i in range(len(requests)):
         rows = page_to_rows[i]
+        prepared_query = prepared_queries[i]
+        old_sel = prepared_query.paging_query
         mapped_order_columns = []
-        for ocol in prepared_queries[i].paging_query.order_columns:
+        for ocol in prepared_query.paging_query.order_columns:
             corresponding_column = selectable.corresponding_column(ocol.element)
             mapped_order_columns.append(find_order_key(OC(corresponding_column), selectable.column_descriptions))
         key_rows = [tuple(col.get_from_row(row) for col in mapped_order_columns) for row in rows]
         print(f"key_rows: {key_rows}")
-        pages.append(prepared_queries[i].page_from_rows(rows, subselect_result))
+        sel = _PagingSelect(old_sel.select, old_sel.order_columns, mapped_order_columns, old_sel.extra_columns)
+        pages.append(prepared_queries[i].page_from_rows(rows, sel, keys))
     return pages
 
 
@@ -603,16 +611,9 @@ def _core_prepare_homogeneous_page(
         page_identifier=page_identifier,
     )
 
-    def page_from_rows(rows, selected):
-        keys = list(selected.keys())
-        print(f"pre-shrunk keys: {keys}")
-        N = len(keys) - len(sel.extra_columns)
-        keys = keys[:N]
-        print(f"post-shrunk keys: {keys}")
-        if rows:
-            print(rows[0])
+    def page_from_rows(rows, paging_select, keys):
         page = core_page_from_rows(
-            sel,
+            paging_select,
             rows,
             keys,
             result_type,

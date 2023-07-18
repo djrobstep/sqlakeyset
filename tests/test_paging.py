@@ -505,6 +505,7 @@ def test_orm_multiple_pages_empty_queries():
 
 
 def test_core_multiple_pages(no_sqlite_dburl):
+    # TODO: Add a test with an order by that adds an extra column.
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
             select(Book).order_by(Book.name, Book.id),
