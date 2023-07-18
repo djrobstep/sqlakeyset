@@ -545,7 +545,7 @@ def select_homogeneous_pages(
         selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
 
     print(f"Select statement: {selectable}")
-    selectable = select(selectable.selected_columns).select_from(selectable)
+    selectable = select(prepared_queries[0].paging_query.select.selected_columns).select_from(selectable)
     print(f"Select from statement: {selectable}")
     selected = s.execute(selectable)
 
