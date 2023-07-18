@@ -538,10 +538,12 @@ def select_homogeneous_pages(
 
     prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
 
-    select = union_all(
-        *[p.paging_query.select for p in prepared_queries]
-    )
-    if len(prepared_queries) > 1:
+    if len(requests) == 1:
+        select = prepared_queries[0].paging_query.select
+    else:
+        select = union_all(
+            *[p.paging_query.select for p in prepared_queries]
+        )
         select = select.order_by(text("_page_identifier"), text("_row_number"))
 
     print(f"Select statement: {select}")
