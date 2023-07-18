@@ -103,6 +103,7 @@ def invert_builtin(x) -> str:
 
     raise NotABuiltin()
 
+
 T = TypeVar("T")
 
 
