@@ -122,20 +122,18 @@ def test_subclass_mro_order():
     class CaughtExceptionB(Exception):
         pass
 
-    def fail_a(x):
-        raise CaughtExceptionA()
+    def a(x):
+        return "a"
 
-    def fail_b(x):
-        raise CaughtExceptionB()
+    def b(x):
+        return "b"
 
-    s.register_type(A, code="suba", deserializer=fail_a, serializer=fail_a)
-    s.register_type(B, code="subb", deserializer=fail_b, serializer=fail_b)
+    s.register_type(A, code="suba", deserializer=a, serializer=a)
+    s.register_type(B, code="subb", deserializer=b, serializer=b)
 
-    with raises(CaughtExceptionA):
-        s.serialize_value(D())
+    assert s.serialize_value(D()) == "suba:a"
 
-    with raises(CaughtExceptionA):
-        s.unserialize_value("suba:test")
+    assert s.unserialize_value("suba:a") == "a"
 
 
 def test_serial():
