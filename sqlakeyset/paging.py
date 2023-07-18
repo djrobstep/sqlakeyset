@@ -558,7 +558,7 @@ def select_homogeneous_pages(
     pages = []
     for i in range(len(requests)):
         rows = page_to_rows[i]
-        pages.append(prepared_queries[i].page_from_rows(rows, selected))
+        pages.append(prepared_queries[i].page_from_rows(rows, s.execute(prepared_queries[i].paging_query.select)))
     return pages
 
 
