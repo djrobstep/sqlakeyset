@@ -159,8 +159,6 @@ def check_multiple_paging_orm(qs):
                         assert actual.__dict__ == expected.__dict__
                     else:
                         assert actual == expected
-                    print(f"actual: {actual.__dict__}")
-                    print(f"expected: {expected.__dict__}")
 
                 page_trackers.remove(t)
                 continue
