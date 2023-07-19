@@ -566,6 +566,7 @@ def select_homogeneous_pages(
             else:
                 yield col
         """
+        _ = Table
         return selectable._raw_columns
     """
     if len(requests) > 1:
