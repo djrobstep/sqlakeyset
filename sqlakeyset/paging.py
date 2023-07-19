@@ -546,11 +546,11 @@ def select_homogeneous_pages(
         selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
     """
 
-    print(f"Select statement: {selectable.compile(compile_kwargs={"literal_binds": True})}")
+    print(f"Select statement: { selectable.compile(compile_kwargs={"literal_binds": True}) }")
     selectable = select(requests[0].selectable.selected_columns).select_from(selectable)
     selectable = selectable.add_columns(text("_page_identifier"), text("_row_number"))
     selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
-    print(f"Select from statement: {selectable.compile(compile_kwargs={"literal_binds": True})}")
+    print(f"Select from statement: { selectable.compile(compile_kwargs={"literal_binds": True}) }")
     selected = s.execute(selectable)
 
     results = selected.fetchall()
