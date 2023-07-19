@@ -559,11 +559,14 @@ def select_homogeneous_pages(
     ).order_by(text("_page_identifier"), text("_row_number"))
 
     def get_columns(selectable):
+        """
         for col in selectable._raw_columns:
             if isinstance(col, Table):
                 yield col._annotations["parententity"].entity
             else:
                 yield col
+        """
+        return selectable._raw_columns
     """
     if len(requests) > 1:
         selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
