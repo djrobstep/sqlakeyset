@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from sqlalchemy.engine.result import result_tuple
 from sqlalchemy.engine.row import Row
-from sqlalchemy.sql.schema import Table
 
 from .constants import ORDER_COL_PREFIX
 
