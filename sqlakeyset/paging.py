@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ColumnElement, literal, select, union_all
 from sqlalchemy.sql.selectable import Select
+from sqlalchemy.sql.schema import Table
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
 from .results import Page, Paging, unserialize_bookmark
@@ -540,18 +541,27 @@ def select_homogeneous_pages(
 
     selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
-    )
+    ).order_by(text("_page_identifier"), text("_row_number"))
+    def get_columns(selectable):
+        for col in selectable._raw_columns:
+            if isinstance(col, Table):
+                yield col._annotations["parententity"].entity
+            else:
+                yield col
     """
     if len(requests) > 1:
         selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
     """
     compiled = selectable.compile(compile_kwargs={"literal_binds": True})
     print(f"Select statement: {compiled}")
+    columns = list(get_columns(prepared_queries[0].paging_query.select)) + [text("_page_identifier")]
+    selectable = select(*columns).from_statement(selectable)
     """
     selectable = select(*[col for col in selectable.columns]).select_from(selectable)
     selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
-    """
+    
     selectable = select(selectable.subquery()).order_by(text("_page_identifier"), text("_row_number"))
+    """
     compiled = selectable.compile(compile_kwargs={"literal_binds": True})
     print(f"Select from statement: {compiled}")
     selected = s.execute(selectable)
@@ -569,11 +579,13 @@ def select_homogeneous_pages(
     # a bunch of selects, it changes the "keys" on us in cases where the column
     # name and python attribute don't match. So we have to execute the first
     # query standalone to ge the correct keys.
+    """
     subselect_result = (
         s.execute(prepared_queries[0].paging_query.select)
         if len(prepared_queries) > 1 else selected
     )
-    keys = list(subselect_result.keys())
+    """
+    keys = list(selected.keys())
     print(f"pre-shrunk keys: {keys}")
     N = len(keys) - len(prepared_queries[0].paging_query.extra_columns)
     keys = keys[:N]
