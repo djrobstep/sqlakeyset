@@ -536,6 +536,22 @@ def select_homogeneous_pages(
     """
     if not requests:
         return []
+    
+    if len(requests) == 1:
+        # Handling 1 request is annoying because of its effect on union_all,
+        # so it's easier to just farm it out.
+        request = requests[0]
+        return [
+            select_page(
+                request.s,
+                request.selectable,
+                per_page=request.per_page,
+                after=request.after,
+                before=request.before,
+                page=request.page
+            )
+        ]
+
 
     prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
 
