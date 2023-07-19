@@ -543,7 +543,7 @@ def select_homogeneous_pages(
         request = requests[0]
         return [
             select_page(
-                request.s,
+                s,
                 request.selectable,
                 per_page=request.per_page,
                 after=request.after,
