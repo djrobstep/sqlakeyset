@@ -541,12 +541,15 @@ def select_homogeneous_pages(
     selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
     )
+    """
     if len(requests) > 1:
         selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
+    """
 
     print(f"Select statement: {selectable}")
     selectable = select(requests[0].selectable.selected_columns).select_from(selectable)
     selectable = selectable.add_columns(*prepared_queries[0].paging_query.extra_columns)
+    selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
     print(f"Select from statement: {selectable}")
     selected = s.execute(selectable)
 
