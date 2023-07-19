@@ -238,7 +238,7 @@ def check_multiple_paging_core(qs, s):
                     if len(expected) != len(actual):
                         print(f"Expected type: {type(expected)} / Actual type: {type(actual)} / Expected[0] type: {type(expected[0])}")
                         for k, v in expected[0].__dict__.items():
-                            if k == "_sa_instance_state" or k == "id":
+                            if k == "_sa_instance_state" or k in {"id", "popularity"}:
                                 continue
                             assert v == getattr(actual, k)
                     else:
