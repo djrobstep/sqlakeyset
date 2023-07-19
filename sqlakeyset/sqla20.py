@@ -66,7 +66,7 @@ def core_result_type(selectable, s):
         return selectable._raw_columns[0]
     """
     if hasattr(selectable, "_raw_columns"):
-        print(selectable._raw_columns[0])
+        print(f"Raw columns: {selectable._raw_columns[0]}")
     return None
 
 
