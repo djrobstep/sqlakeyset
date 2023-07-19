@@ -70,7 +70,7 @@ def core_result_type(selectable, s):
             print(f"Annotations: {col._annotations}")
             if "parententity" in col._annotations:
                 return col._annotations["parententity"].entity
-        #print(f"Raw columns: {selectable._raw_columns}")
+        # print(f"Raw columns: {selectable._raw_columns}")
     return None
 
 
