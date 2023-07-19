@@ -541,7 +541,8 @@ def select_homogeneous_pages(
 
     selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
-    ).order_by(text("_page_identifier"), text("_row_number"))
+    )
+    # .order_by(text("_page_identifier"), text("_row_number"))
 
     def get_columns(selectable):
         for col in selectable._raw_columns:
@@ -556,6 +557,7 @@ def select_homogeneous_pages(
     compiled = selectable.compile(compile_kwargs={"literal_binds": True})
     print(f"Select statement: {compiled}")
     columns = list(get_columns(prepared_queries[0].paging_query.select)) + [text("_page_identifier")]
+    print(columns)
     selectable = select(*columns).from_statement(selectable)
     """
     selectable = select(*[col for col in selectable.columns]).select_from(selectable)
