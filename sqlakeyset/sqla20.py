@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from sqlalchemy.engine.result import result_tuple
 from sqlalchemy.engine.row import Row
+from sqlalchemy.sql.schema import Table
 
 from .constants import ORDER_COL_PREFIX
 
@@ -67,9 +68,11 @@ def core_result_type(selectable, s):
     """
     if hasattr(selectable, "_raw_columns"):
         for col in selectable._raw_columns:
+            if not isinstance(col, Table):
+                continue
             print(f"Annotations: {col._annotations}")
             if "parententity" in col._annotations:
-                return col._annotations["parententity"]
+                return col._annotations["parententity"].entity
         # print(f"Raw columns: {selectable._raw_columns}")
     return None
 
@@ -111,7 +114,7 @@ def core_coerce_row(row: Row, extra_columns, result_type) -> Row:
     processors = None  # Processors are applied immediately in sqla1.4+
     data = row._data[:N]
     if result_type is not None:
-        print(f"result: {result_type(data)}")
+        print(f"result: {result_type(*data)}")
 
     if hasattr(row, "_key_to_index"):
         # 2.0.11+
