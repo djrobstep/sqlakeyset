@@ -237,7 +237,8 @@ def check_multiple_paging_core(qs, s):
                 for actual, expected in zip(t.gathered, t.unpaged):
                     if len(expected) != len(actual):
                         print(f"Expected type: {type(expected)} / Actual type: {type(actual)} / Expected[0] type: {type(expected[0])}")
-                        assert expected[0].__dict__ == actual.__dict__
+                        for k, v in expected[0].__dict__.items():
+                            assert v == getattr(actual, k)
                     else:
                         assert actual == expected
                 page_trackers.remove(t)
