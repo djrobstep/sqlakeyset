@@ -555,7 +555,7 @@ def select_homogeneous_pages(
     """
     compiled = selectable.compile(compile_kwargs={"literal_binds": True})
     print(f"Select statement: {compiled}")
-    columns = list(get_columns(requests[0].selectable))
+    columns = list(get_columns(prepared_queries[0].paging_query.select))
     print(columns)
     selectable = select(*columns).from_statement(selectable)
     """
