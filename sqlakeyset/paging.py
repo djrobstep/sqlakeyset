@@ -598,6 +598,7 @@ def select_homogeneous_pages(
         rows = page_to_rows[i]
         prepared_query = prepared_queries[i]
         old_sel = prepared_query.paging_query
+        """
         mapped_order_columns = []
         for ocol in prepared_query.paging_query.order_columns:
             corresponding_column = selectable.corresponding_column(ocol.element)
@@ -606,6 +607,8 @@ def select_homogeneous_pages(
         print(f"key_rows: {key_rows}")
         sel = _PagingSelect(old_sel.select, old_sel.order_columns, mapped_order_columns, old_sel.extra_columns)
         pages.append(prepared_queries[i].page_from_rows(rows, sel, keys))
+        """
+        pages.append(prepared_queries[i].page_from_rows(rows, old_sel, keys))
     return pages
 
 
