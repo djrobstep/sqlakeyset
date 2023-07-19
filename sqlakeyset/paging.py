@@ -542,6 +542,7 @@ def select_homogeneous_pages(
     selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
     ).order_by(text("_page_identifier"), text("_row_number"))
+
     def get_columns(selectable):
         for col in selectable._raw_columns:
             if isinstance(col, Table):
@@ -559,7 +560,7 @@ def select_homogeneous_pages(
     """
     selectable = select(*[col for col in selectable.columns]).select_from(selectable)
     selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
-    
+
     selectable = select(selectable.subquery()).order_by(text("_page_identifier"), text("_row_number"))
     """
     compiled = selectable.compile(compile_kwargs={"literal_binds": True})
