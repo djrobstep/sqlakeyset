@@ -152,9 +152,16 @@ def check_multiple_paging_orm(qs):
             if page is None:
                 # Ensure union of pages is original q.all()
                 for actual, expected in zip(t.gathered, t.unpaged):
+                    if hasattr(expected, __dict__):
+                        # ORM objects are tough. We don't return exactly the same result
+                        # type, but the results are functionally equivalent as tested
+                        # here.
+                        assert actual.__dict__ == expected.__dict__
+                    else:
+                        assert actual == expected
                     print(f"actual: {actual.__dict__}")
                     print(f"expected: {expected.__dict__}")
-                    assert actual.__dict__ == expected.__dict__
+                    
                 page_trackers.remove(t)
                 continue
 
