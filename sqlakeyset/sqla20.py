@@ -65,6 +65,8 @@ def core_result_type(selectable, s):
     if any(col._annotations for col in selectable._raw_columns):
         return selectable._raw_columns[0]
     """
+    if hasattr(selectable, "_raw_columns"):
+        print(selectable._raw_columns[0])
     return None
 
 
