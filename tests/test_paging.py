@@ -235,7 +235,8 @@ def check_multiple_paging_core(qs, s):
             if page is None:
                 # Ensure union of pages is original q.all()
                 for actual, expected in zip(t.gathered, t.unpaged):
-                    if isinstance(expected, tuple) and not isinstance(actual, tuple):
+                    if len(expected) != len(actual):
+                        print(f"Expected type: {type(expected)} / Actual type: {type(actual)} / Expected[0] type: {type(expected[0])}")
                         assert expected[0] == actual
                     else:
                         assert actual == expected
