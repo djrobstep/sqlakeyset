@@ -572,6 +572,7 @@ def select_homogeneous_pages(
     N = len(keys) - len(prepared_queries[0].paging_query.extra_columns)
     keys = keys[:N]
     print(f"post-shrunk keys: {keys}")
+    print(f"Page to rows: {page_to_rows}")
 
     for i in range(len(requests)):
         rows = page_to_rows[i]
