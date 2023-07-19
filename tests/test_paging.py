@@ -151,6 +151,10 @@ def check_multiple_paging_orm(qs):
             page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i + 1)
             if page is None:
                 # Ensure union of pages is original q.all()
+                for actual, expected in zip(t.gathered, t.paged):
+                    print(f"actual: {actual.__dict__}")
+                    print(f"expected: {expected.__dict__}")
+                    assert False
                 assert list(t.gathered) == t.unpaged
                 page_trackers.remove(t)
                 continue
