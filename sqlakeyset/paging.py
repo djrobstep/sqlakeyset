@@ -558,23 +558,13 @@ def select_homogeneous_pages(
         *[p.paging_query.select for p in prepared_queries]
     ).order_by(text("_page_identifier"), text("_row_number"))
 
-    def get_columns(selectable):
-        """
-        for col in selectable._raw_columns:
-            if isinstance(col, Table):
-                yield col._annotations["parententity"].entity
-            else:
-                yield col
-        """
-        _ = Table
-        return selectable._raw_columns
     """
     if len(requests) > 1:
         selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
     """
     compiled = selectable.compile(compile_kwargs={"literal_binds": True})
     print(f"Select statement: {compiled}")
-    columns = list(get_columns(prepared_queries[0].paging_query.select))
+    columns = prepared_queries[0].paging_query.select._raw_columns
     print(columns)
     selectable = select(*columns).from_statement(selectable)
     """
