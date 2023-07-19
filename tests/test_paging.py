@@ -154,6 +154,7 @@ def check_multiple_paging_orm(qs):
                 for actual, expected in zip(t.gathered, t.unpaged):
                     print(f"actual: {actual.__dict__}")
                     print(f"expected: {expected.__dict__}")
+                    assert actual.__dict__ == expected.__dict__
                     assert False
                 assert list(t.gathered) == t.unpaged
                 page_trackers.remove(t)
