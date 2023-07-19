@@ -65,7 +65,6 @@ def core_result_type(selectable, s):
     """
     if any(col._annotations for col in selectable._raw_columns):
         return selectable._raw_columns[0]
-    """
     if hasattr(selectable, "_raw_columns"):
         for col in selectable._raw_columns:
             if not isinstance(col, Table):
@@ -74,6 +73,7 @@ def core_result_type(selectable, s):
             if "parententity" in col._annotations:
                 return col._annotations["parententity"].entity
         # print(f"Raw columns: {selectable._raw_columns}")
+    """
     return None
 
 
@@ -113,8 +113,6 @@ def core_coerce_row(row: Row, extra_columns, result_type) -> Row:
     parent = row._parent
     processors = None  # Processors are applied immediately in sqla1.4+
     data = row._data[:N]
-    if result_type is not None:
-        print(f"result: {result_type(*data)}")
 
     if hasattr(row, "_key_to_index"):
         # 2.0.11+
