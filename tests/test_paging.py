@@ -237,7 +237,7 @@ def check_multiple_paging_core(qs, s):
                 for actual, expected in zip(t.gathered, t.unpaged):
                     if len(expected) != len(actual):
                         print(f"Expected type: {type(expected)} / Actual type: {type(actual)} / Expected[0] type: {type(expected[0])}")
-                        assert expected[0] == actual
+                        assert expected[0].__dict__ == actual.__dict__
                     else:
                         assert actual == expected
                 page_trackers.remove(t)
@@ -568,10 +568,11 @@ def test_core(dburl):
         check_paging_core(selectable=selectable, s=s.connection())
 
 
-def test_core_whole_model(dburl):
+def test_core_whole_models(dburl):
     selectable = (
-        select(Book)
-        .where(Book.d == 99)
+        select(Book, Author)
+        .where(Book.id < 10)
+        .join(Author, Book.author_id == Author.id)
         .order_by(Book.id)
     )
 

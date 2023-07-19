@@ -61,6 +61,10 @@ def core_result_type(selectable, s):
     """Given a SQLAlchemy Core selectable and a connection/session, get the
     type constructor for the result row type."""
     # Unused in sqlalchemy 1.4: see core_coerce_row implementation
+    """
+    if any(col._annotations for col in selectable._raw_columns):
+        return selectable._raw_columns[0]
+    """
     return None
 
 
