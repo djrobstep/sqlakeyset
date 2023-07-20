@@ -550,9 +550,9 @@ def test_core_multiple_pages_select_columns(no_sqlite_dburl):
 def test_core_multiple_pages_different_extra_columns(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
-            select(Book.name).order_by(Book.b, book.id),
+            select(Book.name).order_by(Book.b, Book.id),
             select(Book.name).order_by(Book.id),
-            select(Book.name).order_by(Book.c, book.id),
+            select(Book.name).order_by(Book.c, Book.id),
         ]
         check_multiple_paging_core(qs=qs, s=s)
 
