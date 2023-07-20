@@ -610,16 +610,16 @@ def _get_ordering_infos(requests, orm) -> list[_OrderingInfo]:
         if orm:
             if not isinstance(request, OrmPageRequest):
                 raise ValueError("If orm=True then requests must be OrmPageRequests")
-            selectable = orm_to_selectable(q)
-            column_descriptions = q.column_descriptions
+            selectable = orm_to_selectable(request.query)
+            column_descriptions = request.query.column_descriptions
         else:
             if isinstance(request, OrmPageRequest):
                 raise ValueError("If orm=False then q cannot be a OrmPageRequest")
-            selectable = q
+            selectable = request.selectable
             try:
-                column_descriptions = q.column_descriptions
+                column_descriptions = selectable.column_descriptions
             except Exception:
-                column_descriptions = q._raw_columns  # type: ignore
+                column_descriptions = selectable._raw_columns  # type: ignore
 
         order_cols = parse_ob_clause(selectable)
         place, backwards = process_args(request.after, request.before, request.page)
@@ -647,12 +647,12 @@ def _get_ordering_infos(requests, orm) -> list[_OrderingInfo]:
     print(f"Extra columns: {extra_columns}")
     for i, info in enumerate(infos):
         info.extra_columns = list(extra_columns) + [
-            literal(page_identifier).label("_page_identifier"),
+            literal(i).label("_page_identifier"),
             func.ROW_NUMBER().over(
                 order_by=[c.uo for c in info.order_cols]
             ).label("_row_number"),
         ]
-    
+
     return infos
 
 
@@ -715,7 +715,7 @@ def _orm_prepare_homogeneous_page(
     clauses = [col.ob_clause for col in info.mapped_ocols]
     query = query.order_by(None).order_by(*clauses)
 
-    if hasattr(q, "add_columns"):  # ORM or SQLAlchemy 1.4+
+    if hasattr(query, "add_columns"):  # ORM or SQLAlchemy 1.4+
         print(f"Adding extra columns: {info.extra_columns}")
         query = query.add_columns(*info.extra_columns)
     else:
@@ -728,7 +728,7 @@ def _orm_prepare_homogeneous_page(
         orm_to_selectable(query),
         request.per_page,
         place,
-        get_bind(q=selectable, s=s).dialect,
+        query.session.get_bind().dialect,
         info.order_cols,
         orm=False
     )
