@@ -674,7 +674,7 @@ def _core_prepare_homogeneous_page(
         backwards=backwards,
         orm=False,
         dialect=get_bind(q=selectable, s=s).dialect,
-        extra_columns=extra_columns,
+        extra_columns_override=extra_columns,
         page_identifier=page_identifier,
     )
 
