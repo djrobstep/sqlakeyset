@@ -236,15 +236,7 @@ def check_multiple_paging_core(qs, s):
             page = assert_paging_core(t.page_with_paging, t.gathered, t.backwards, t.selected, t.page, i + 1)
             if page is None:
                 # Ensure union of pages is original q.all()
-                for actual, expected in zip(t.gathered, t.unpaged):
-                    if len(expected) != len(actual):
-                        print(f"Expected type: {type(expected)} / Actual type: {type(actual)} / Expected[0] type: {type(expected[0])}")
-                        for k, v in expected[0].__dict__.items():
-                            if k == "_sa_instance_state" or k in {"id", "popularity"}:
-                                continue
-                            assert v == getattr(actual, k)
-                    else:
-                        assert actual == expected
+                assert list(t.gathered) == t.unpaged
                 page_trackers.remove(t)
                 continue
 
