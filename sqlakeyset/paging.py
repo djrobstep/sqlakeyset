@@ -566,7 +566,7 @@ def select_homogeneous_pages(
             column_descriptions = request.selectable._raw_columns  # type: ignore
         order_cols = parse_ob_clause(request.selectable)
         place, backwards = process_args(request.after, request.before, request.page)
-        if request.backwards:
+        if backwards:
             order_cols = [c.reversed for c in order_cols]
         mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
         for col in mapped_ocols:
