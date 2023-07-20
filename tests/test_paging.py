@@ -494,6 +494,20 @@ def test_orm_multiple_pages_select_columns(no_sqlite_dburl):
         check_multiple_paging_orm(qs=qs)
 
 
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
+def test_orm_multiple_pages_different_extra_columns(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Book.name).order_by(Book.b, Book.id),
+            s.query(Book.name).order_by(Book.id),
+            s.query(Book.name).order_by(Book.c, Book.id),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
 def test_orm_multiple_pages_one_query(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
