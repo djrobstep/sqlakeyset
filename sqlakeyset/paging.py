@@ -586,7 +586,7 @@ def select_homogeneous_pages(
                 # Since we cache these mappers across different selects, we need
                 # to fix up any ordering here.
                 if mapped_ocols[i].oc.is_ascending != order_cols[i].is_ascending:
-                    mapped_ocols[i] = mapped_ocols[i].reversed()
+                    mapped_ocols[i] = mapped_ocols[i].reversed
             else:
                 extra_column_mappers[name] = col
         mapped_order_columns_per_request.append(mapped_ocols)
