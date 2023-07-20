@@ -553,14 +553,24 @@ def select_homogeneous_pages(
             )
         ]
 
-    extra_columns: Set[OC] = set()
+    # Because UNION ALL requires identical SELECT statements, but we allow different
+    # order_bys which could result in different extra columns for order keys, we need
+    # to first find the superset of extra columns and then add those to ever single
+    # selectable.
+
+
+    extra_columns: set[OC] = set()
     for request in requests:
+        try:
+            column_descriptions = request.selectable.column_descriptions
+        except Exception:
+            column_descriptions = request.selectable._raw_columns  # type: ignore
         order_cols = parse_ob_clause(request.selectable)
         place, backwards = process_args(request.after, request.before, request.page)
         if request.backwards:
             order_cols = [c.reversed for c in order_cols]
         mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
-        for col in mapped_cols:
+        for col in mapped_ocols:
             if col.extra_column is None:
                 continue
             oc = OC(col.extra_column)
