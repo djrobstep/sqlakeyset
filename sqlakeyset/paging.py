@@ -226,7 +226,7 @@ def prepare_paging(
         for col in extra_columns:  # SQLAlchemy Core <1.4
             q = q.column(col)  # type: ignore
 
-    q = _apply_where_and_limit(q, selectable, per_page, place, dialect, order_cols)
+    q = _apply_where_and_limit(q, selectable, per_page, place, dialect, order_cols, orm)
 
     if orm:
         assert isinstance(q, Query)
@@ -236,7 +236,7 @@ def prepare_paging(
         return _PagingSelect(q, order_cols, mapped_ocols, extra_columns)
 
 
-def _apply_where_and_limit(q, selectable, per_page, place, dialect, order_cols):
+def _apply_where_and_limit(q, selectable, per_page, place, dialect, order_cols, orm):
     if place:
         condition = where_condition_for_page(order_cols, place, dialect)
         # For aggregate queries, paging condition is applied *after*
@@ -696,7 +696,8 @@ def _core_prepare_homogeneous_page(
         request.per_page,
         place,
         get_bind(q=selectable, s=s).dialect,
-        order_cols
+        order_cols,
+        orm=False
     )
     sel = _PagingSelect(selectable, order_cols, mapped_ocols, extra_columns)
 
