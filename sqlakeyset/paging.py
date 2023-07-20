@@ -491,6 +491,10 @@ def get_homogeneous_pages(requests: list[OrmPageRequest[_TP]]) -> list[Page[Row[
     if not requests:
         return []
 
+    # Because UNION ALL requires identical SELECT statements, but we allow different
+    # order_bys which could result in different extra columns for order keys, we need
+    # to first find the superset of extra columns and then add those to every single
+    # selectable.
     ordering_infos = _get_ordering_infos(requests, orm=True)
     prepared_queries = [
         _orm_prepare_homogeneous_page(request, ordering_infos[i], i)
@@ -552,9 +556,8 @@ def select_homogeneous_pages(
 
     # Because UNION ALL requires identical SELECT statements, but we allow different
     # order_bys which could result in different extra columns for order keys, we need
-    # to first find the superset of extra columns and then add those to ever single
+    # to first find the superset of extra columns and then add those to every single
     # selectable.
-
     ordering_infos = _get_ordering_infos(requests, orm=False)
 
     prepared_queries = [
@@ -569,10 +572,7 @@ def select_homogeneous_pages(
     columns = prepared_queries[0].paging_query.select._raw_columns
     selectable = select(*columns).from_statement(selectable)
 
-    compiled = selectable.compile(compile_kwargs={"literal_binds": True})
-    print(f"Select from statement: {compiled}")
     selected = s.execute(selectable)
-
     results = selected.fetchall()
 
     # We need to make sure there's an entry for every page in case some return
@@ -644,7 +644,6 @@ def _get_ordering_infos(requests, orm) -> list[_OrderingInfo]:
         info.mapped_ocols = mapped_ocols
 
     extra_columns = [col.extra_column for col in extra_column_mappers.values()]
-    print(f"Extra columns: {extra_columns}")
     for i, info in enumerate(infos):
         info.extra_columns = list(extra_columns) + [
             literal(i).label("_page_identifier"),
@@ -716,7 +715,6 @@ def _orm_prepare_homogeneous_page(
     query = query.order_by(None).order_by(*clauses)
 
     if hasattr(query, "add_columns"):  # ORM or SQLAlchemy 1.4+
-        print(f"Adding extra columns: {info.extra_columns}")
         query = query.add_columns(*info.extra_columns)
     else:
         for col in info.extra_columns:  # SQLAlchemy Core <1.4
