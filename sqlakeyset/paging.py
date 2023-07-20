@@ -180,7 +180,6 @@ def prepare_paging(
     backwards: bool,
     orm: bool,
     dialect: Dialect,
-    extra_columns_override: Optional[List[ColumnElement]] = None,
     page_identifier: Optional[int] = None,
 ) -> Union[_PagingQuery, _PagingSelect]:
     if orm:
@@ -207,13 +206,9 @@ def prepare_paging(
     if orm:
         q = q.only_return_tuples(True)  # type: ignore
 
-    if extra_columns_override is None:
-        extra_columns = [
-            col.extra_column for col in mapped_ocols if col.extra_column is not None
-        ]
-    else:
-        # Important to copy this list, as we modify later.
-        extra_columns = list(extra_columns_override)
+    extra_columns = [
+        col.extra_column for col in mapped_ocols if col.extra_column is not None
+    ]
 
     # page_identifier is used for fetching multiple pages.
     if page_identifier is not None:
@@ -231,6 +226,17 @@ def prepare_paging(
         for col in extra_columns:  # SQLAlchemy Core <1.4
             q = q.column(col)  # type: ignore
 
+    q = _apply_where_and_limit(q, selectable, per_page, place, dialect, order_cols)
+
+    if orm:
+        assert isinstance(q, Query)
+        return _PagingQuery(q, order_cols, mapped_ocols, extra_columns)
+    else:
+        assert not isinstance(q, Query)
+        return _PagingSelect(q, order_cols, mapped_ocols, extra_columns)
+
+
+def _apply_where_and_limit(q, selectable, per_page, place, dialect, order_cols):
     if place:
         condition = where_condition_for_page(order_cols, place, dialect)
         # For aggregate queries, paging condition is applied *after*
@@ -245,12 +251,7 @@ def prepare_paging(
             q = q.where(condition)
 
     q = q.limit(per_page + 1)  # 1 extra to check if there's a further page
-    if orm:
-        assert isinstance(q, Query)
-        return _PagingQuery(q, order_cols, mapped_ocols, extra_columns)
-    else:
-        assert not isinstance(q, Query)
-        return _PagingSelect(q, order_cols, mapped_ocols, extra_columns)
+    return q
 
 
 def orm_get_page(
@@ -562,7 +563,9 @@ def select_homogeneous_pages(
     # to first find the superset of extra columns and then add those to ever single
     # selectable.
 
-    extra_columns = []
+    extra_column_mappers: dict[str, MappedOrderColumn] = {}
+    mapped_order_columns_per_request = []
+    order_cols_per_request = []
     for request in requests:
         try:
             column_descriptions = request.selectable.column_descriptions
@@ -572,17 +575,24 @@ def select_homogeneous_pages(
         place, backwards = process_args(request.after, request.before, request.page)
         if backwards:
             order_cols = [c.reversed for c in order_cols]
+        order_cols_per_request.append(order_cols)
         mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
+        for i, col in enumerate(list(mapped_ocols)):
+            if col.quoted_full_name in extra_column_mappers:
+                mapped_ocols[i] = extra_column_mappers[col.quoted_full_name]
+        mapped_order_columns_per_request.append(mapped_ocols)
+
         for col in mapped_ocols:
             if col.extra_column is None:
                 continue
-            oc = OC(col.extra_column)
-            if not any(oc.quoted_full_name == c.quoted_full_name for c in extra_columns):
-                extra_columns.append(oc)
-    extra_columns = [col.element for col in extra_columns]
+            name = OC(col.extra_column).quoted_full_name
+            if name not in extra_column_mappers:
+                extra_column_mappers[name] = col
+
+    extra_columns = [col.extra_column for col in extra_column_mappers.values()]
 
     print(f"Extra columns: {extra_columns}")
-    prepared_queries = [_core_prepare_homogeneous_page(request, s, extra_columns, i) for i, request in enumerate(requests)]
+    prepared_queries = [_core_prepare_homogeneous_page(request, s, order_cols_per_request[i], mapped_order_columns_per_request[i], extra_columns, i) for i, request in enumerate(requests)]
 
     selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
@@ -660,6 +670,8 @@ class _PreparedQuery:
 def _core_prepare_homogeneous_page(
     request: PageRequest[_TP],
     s: Union[Session, Connection],
+    order_cols: list[OC],
+    mapped_ocols: list[MappedOrderColumn]
     extra_columns: list[ColumnElement],
     page_identifier: int
 ) -> _PreparedQuery:
@@ -667,16 +679,26 @@ def _core_prepare_homogeneous_page(
 
     selectable = request.selectable
     result_type = core_result_type(selectable, s)
-    sel = prepare_paging(
-        q=selectable,
-        per_page=request.per_page,
-        place=place,
-        backwards=backwards,
-        orm=False,
-        dialect=get_bind(q=selectable, s=s).dialect,
-        extra_columns_override=extra_columns,
-        page_identifier=page_identifier,
+
+    clauses = [col.ob_clause for col in mapped_ocols]
+    selectable = selectable.order_by(None).order_by(*clauses)
+
+    extra_columns += [
+        literal(page_identifier).label("_page_identifier"),
+        func.ROW_NUMBER().over(
+            order_by=[c.uo for c in order_cols]
+        ).label("_row_number"),
+    ]
+    selectable = selectable.add_columns(*extra_columns)
+    selectable = _apply_where_and_limit(
+        selectable,
+        selectable,
+        request.per_page,
+        place,
+        get_bind(q=selectable, s=s).dialect,
+        order_cols
     )
+    sel = _PagingSelect(selectable, order_cols, mapped_ocols, extra_columns)
 
     def page_from_rows(rows, paging_select, keys):
         page = core_page_from_rows(
