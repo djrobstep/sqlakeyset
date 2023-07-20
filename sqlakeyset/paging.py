@@ -558,7 +558,6 @@ def select_homogeneous_pages(
     # to first find the superset of extra columns and then add those to ever single
     # selectable.
 
-
     extra_columns: set[OC] = set()
     for request in requests:
         try:
