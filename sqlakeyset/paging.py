@@ -26,7 +26,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ColumnElement, literal, select, union_all
 from sqlalchemy.sql.selectable import Select
-from sqlalchemy.sql.schema import Table
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
 from .results import Page, Paging, unserialize_bookmark
