@@ -180,7 +180,7 @@ def prepare_paging(
     backwards: bool,
     orm: bool,
     dialect: Dialect,
-    extra_columns: Optional[List[ColumnElement]] = None,
+    extra_columns_override: Optional[List[ColumnElement]] = None,
     page_identifier: Optional[int] = None,
 ) -> Union[_PagingQuery, _PagingSelect]:
     if orm:
@@ -211,6 +211,9 @@ def prepare_paging(
         extra_columns = [
             col.extra_column for col in mapped_ocols if col.extra_column is not None
         ]
+    else:
+        # Important to copy this list, as we modify later.
+        extra_columns = list(extra_columns_override)
 
     # page_identifier is used for fetching multiple pages.
     if page_identifier is not None:
