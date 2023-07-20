@@ -578,16 +578,14 @@ def select_homogeneous_pages(
         order_cols_per_request.append(order_cols)
         mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
         for i, col in enumerate(list(mapped_ocols)):
-            if col.extra_column is not None and col.oc.quoted_full_name in extra_column_mappers:
-                mapped_ocols[i] = extra_column_mappers[col.oc.quoted_full_name]
-        mapped_order_columns_per_request.append(mapped_ocols)
-
-        for col in mapped_ocols:
             if col.extra_column is None:
                 continue
             name = OC(col.extra_column).quoted_full_name
-            if name not in extra_column_mappers:
+            if name in extra_column_mappers:
+                mapped_ocols[i] = extra_column_mappers[name]
+            else:
                 extra_column_mappers[name] = col
+        mapped_order_columns_per_request.append(mapped_ocols)
 
     extra_columns = [col.extra_column for col in extra_column_mappers.values()]
 
@@ -683,7 +681,7 @@ def _core_prepare_homogeneous_page(
     clauses = [col.ob_clause for col in mapped_ocols]
     selectable = selectable.order_by(None).order_by(*clauses)
 
-    extra_columns += [
+    extra_columns = list(extra_columns) + [
         literal(page_identifier).label("_page_identifier"),
         func.ROW_NUMBER().over(
             order_by=[c.uo for c in order_cols]
