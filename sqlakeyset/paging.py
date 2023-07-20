@@ -180,6 +180,7 @@ def prepare_paging(
     backwards: bool,
     orm: bool,
     dialect: Dialect,
+    extra_columns: Optional[List[ColumnElement]] = None,
     page_identifier: Optional[int] = None,
 ) -> Union[_PagingQuery, _PagingSelect]:
     if orm:
@@ -206,9 +207,10 @@ def prepare_paging(
     if orm:
         q = q.only_return_tuples(True)  # type: ignore
 
-    extra_columns = [
-        col.extra_column for col in mapped_ocols if col.extra_column is not None
-    ]
+    if extra_columns is None:
+        extra_columns = [
+            col.extra_column for col in mapped_ocols if col.extra_column is not None
+        ]
 
     # page_identifier is used for fetching multiple pages.
     if page_identifier is not None:
@@ -551,7 +553,22 @@ def select_homogeneous_pages(
             )
         ]
 
-    prepared_queries = [_core_prepare_homogeneous_page(request, s, i) for i, request in enumerate(requests)]
+    extra_columns: Set[OC] = set()
+    for request in requests:
+        order_cols = parse_ob_clause(request.selectable)
+        place, backwards = process_args(request.after, request.before, request.page)
+        if request.backwards:
+            order_cols = [c.reversed for c in order_cols]
+        mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
+        for col in mapped_cols:
+            if col.extra_column is None:
+                continue
+            oc = OC(col.extra_column)
+            if not any(oc.quoted_full_name == c.quoted_full_name for c in extra_columns):
+                extra_columns.add(oc)
+    extra_columns = list(col.element for col in extra_columns)
+
+    prepared_queries = [_core_prepare_homogeneous_page(request, s, extra_columns, i) for i, request in enumerate(requests)]
 
     selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
@@ -627,7 +644,10 @@ class _PreparedQuery:
 
 
 def _core_prepare_homogeneous_page(
-    request: PageRequest[_TP], s: Union[Session, Connection], page_identifier: int
+    request: PageRequest[_TP],
+    s: Union[Session, Connection],
+    extra_columns: list[ColumnElement],
+    page_identifier: int
 ) -> _PreparedQuery:
     place, backwards = process_args(request.after, request.before, request.page)
 
@@ -640,6 +660,7 @@ def _core_prepare_homogeneous_page(
         backwards=backwards,
         orm=False,
         dialect=get_bind(q=selectable, s=s).dialect,
+        extra_columns=extra_columns,
         page_identifier=page_identifier,
     )
 
