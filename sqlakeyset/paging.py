@@ -729,7 +729,7 @@ def _orm_prepare_homogeneous_page(
         place,
         query.session.get_bind().dialect,
         info.order_cols,
-        orm=False
+        orm=True
     )
     paging_query = _PagingQuery(query, info.order_cols, info.mapped_ocols, info.extra_columns)
 
