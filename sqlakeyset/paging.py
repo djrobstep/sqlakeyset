@@ -578,8 +578,8 @@ def select_homogeneous_pages(
         order_cols_per_request.append(order_cols)
         mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
         for i, col in enumerate(list(mapped_ocols)):
-            if col.quoted_full_name in extra_column_mappers:
-                mapped_ocols[i] = extra_column_mappers[col.quoted_full_name]
+            if col.extra_column is not None and col.oc.quoted_full_name in extra_column_mappers:
+                mapped_ocols[i] = extra_column_mappers[col.oc.quoted_full_name]
         mapped_order_columns_per_request.append(mapped_ocols)
 
         for col in mapped_ocols:
