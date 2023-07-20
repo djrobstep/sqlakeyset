@@ -722,7 +722,6 @@ def _orm_prepare_homogeneous_page(
         for col in info.extra_columns:  # SQLAlchemy Core <1.4
             query = query.column(col)  # type: ignore
 
-    selectable = orm_to_selectable(query)
     query = _apply_where_and_limit(
         query,
         orm_to_selectable(query),
