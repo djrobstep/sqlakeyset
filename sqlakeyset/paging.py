@@ -524,7 +524,7 @@ def get_homogeneous_pages(requests: list[OrmPageRequest[_TP]]) -> list[Page[Row[
 def select_homogeneous_pages(
     requests: list[PageRequest[_TP]], s: Union[Session, Connection]
 ) -> list[Page[Row[_TP]]]:
-    """Get multiple pages of results for homogeneous legacy ORM queries.
+    """Get multiple pages of results for homogeneous 2.0 style queries.
 
     This only involves a single round trip to the database. To do that, under the
     hood it generates a UNION ALL. That means each query must select exactly the
@@ -535,6 +535,8 @@ def select_homogeneous_pages(
     statements in components of a compound select, which SQLite does not.
 
     Resulting pages are returned in the same order as the original page requests.
+
+    Only supported in SQLAlchemy version 1.4+
     """
     if not requests:
         return []
