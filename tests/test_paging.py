@@ -236,7 +236,7 @@ def check_multiple_paging_core(qs, s):
             page = assert_paging_core(t.page_with_paging, t.gathered, t.backwards, t.selected, t.page, i + 1)
             if page is None:
                 # Ensure union of pages is original q.all()
-                assert list(t.gathered) == t.unpaged
+                assert list(t.gathered) == t.unpaged, f"Different elements for tracker {t}"
                 page_trackers.remove(t)
                 continue
 

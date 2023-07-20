@@ -582,7 +582,9 @@ def select_homogeneous_pages(
                 continue
             name = OC(col.extra_column).quoted_full_name
             if name in extra_column_mappers:
-                mapped_ocols[i] = extra_column_mappers[name]
+                mapped_ocols[i] = copy(extra_column_mappers[name])
+                # Fix up oc to make sure the ordering is correct.
+                mapped_ocols[i].oc = order_cols[i]
             else:
                 extra_column_mappers[name] = col
         mapped_order_columns_per_request.append(mapped_ocols)
