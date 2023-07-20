@@ -207,7 +207,7 @@ def prepare_paging(
     if orm:
         q = q.only_return_tuples(True)  # type: ignore
 
-    if extra_columns is None:
+    if extra_columns_override is None:
         extra_columns = [
             col.extra_column for col in mapped_ocols if col.extra_column is not None
         ]
