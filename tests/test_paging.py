@@ -505,7 +505,7 @@ def test_orm_multiple_pages_different_extra_columns(no_sqlite_dburl):
             s.query(Book.name).order_by(Book.id),
             s.query(Book.name).order_by(Book.c, Book.id),
         ]
-        check_multiple_paging_orm(qs=qs, s=s)
+        check_multiple_paging_orm(qs=qs)
 
 
 def test_orm_multiple_pages_one_query(no_sqlite_dburl):
