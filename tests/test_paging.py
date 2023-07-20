@@ -41,6 +41,7 @@ from sqlakeyset import (
 )
 from sqlakeyset.paging import process_args
 from sqlakeyset.results import Page
+from sqlakeyset.sqla import SQLA_VERSION
 from sqlakeyset.types import MarkerLike
 from conftest import (
     Book,
@@ -513,7 +514,10 @@ def test_orm_multiple_pages_empty_queries():
     assert get_homogeneous_pages([]) == []
 
 
-"""
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Broken in 1.3."
+)
 def test_core_multiple_pages(no_sqlite_dburl):
     # TODO: Add a test with an order by that adds an extra column.
     with S(no_sqlite_dburl, echo=ECHO) as s:
@@ -549,7 +553,6 @@ def test_core_multiple_pages_one_query_whole_model(no_sqlite_dburl):
             select(Book).order_by(Book.id),
         ]
         check_multiple_paging_core(qs=qs, s=s)
-"""
 
 
 def test_core_multiple_pages_empty_queries(no_sqlite_dburl):
@@ -572,10 +575,12 @@ def test_core(dburl):
         check_paging_core(selectable=selectable, s=s.connection())
 
 
-def test_core_whole_models(dburl):
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Broken in 1.3."
+)
+def test_core_whole_model_plus_other_columns(dburl):
     selectable = (
-        # Consider joining against another table. Need to figure out
-        # 1.3 compatible syntax though.
         select(Book, literal(0))
         .where(Book.id < 10)
         .order_by(Book.id)
