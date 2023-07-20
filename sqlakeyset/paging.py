@@ -671,7 +671,7 @@ def _core_prepare_homogeneous_page(
     request: PageRequest[_TP],
     s: Union[Session, Connection],
     order_cols: list[OC],
-    mapped_ocols: list[MappedOrderColumn]
+    mapped_ocols: list[MappedOrderColumn],
     extra_columns: list[ColumnElement],
     page_identifier: int
 ) -> _PreparedQuery:
