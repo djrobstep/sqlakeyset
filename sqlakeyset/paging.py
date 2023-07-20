@@ -222,6 +222,7 @@ def prepare_paging(
         ]
 
     if hasattr(q, "add_columns"):  # ORM or SQLAlchemy 1.4+
+        print(f"Adding extra columns: {extra_columns}")
         q = q.add_columns(*extra_columns)
     else:
         for col in extra_columns:  # SQLAlchemy Core <1.4
@@ -558,7 +559,7 @@ def select_homogeneous_pages(
     # to first find the superset of extra columns and then add those to ever single
     # selectable.
 
-    extra_columns: set[OC] = set()
+    extra_columns = []
     for request in requests:
         try:
             column_descriptions = request.selectable.column_descriptions
@@ -574,9 +575,10 @@ def select_homogeneous_pages(
                 continue
             oc = OC(col.extra_column)
             if not any(oc.quoted_full_name == c.quoted_full_name for c in extra_columns):
-                extra_columns.add(oc)
-    extra_columns = list(col.element for col in extra_columns)
+                extra_columns.append(oc)
+    extra_columns = [col.element for col in extra_columns]
 
+    print(f"Extra columns: {extra_columns}")
     prepared_queries = [_core_prepare_homogeneous_page(request, s, extra_columns, i) for i, request in enumerate(requests)]
 
     selectable = union_all(
