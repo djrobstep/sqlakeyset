@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from functools import partial
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Callable,
@@ -210,17 +210,7 @@ def prepare_paging(
         col.extra_column for col in mapped_ocols if col.extra_column is not None
     ]
 
-    # page_identifier is used for fetching multiple pages.
-    if page_identifier is not None:
-        extra_columns += [
-            literal(page_identifier).label("_page_identifier"),
-            func.ROW_NUMBER().over(
-                order_by=[c.uo for c in order_cols]
-            ).label("_row_number"),
-        ]
-
     if hasattr(q, "add_columns"):  # ORM or SQLAlchemy 1.4+
-        print(f"Adding extra columns: {extra_columns}")
         q = q.add_columns(*extra_columns)
     else:
         for col in extra_columns:  # SQLAlchemy Core <1.4
@@ -501,8 +491,10 @@ def get_homogeneous_pages(requests: list[OrmPageRequest[_TP]]) -> list[Page[Row[
     if not requests:
         return []
 
+    ordering_infos = _get_ordering_infos(requests, orm=True)
     prepared_queries = [
-        _orm_prepare_homogeneous_page(request, i) for i, request in enumerate(requests)
+        _orm_prepare_homogeneous_page(request, ordering_infos[i], i)
+        for i, request in enumerate(requests)
     ]
 
     query = prepared_queries[0].paging_query.query
@@ -563,58 +555,20 @@ def select_homogeneous_pages(
     # to first find the superset of extra columns and then add those to ever single
     # selectable.
 
-    extra_column_mappers: dict[str, MappedOrderColumn] = {}
-    mapped_order_columns_per_request = []
-    order_cols_per_request = []
-    for request in requests:
-        try:
-            column_descriptions = request.selectable.column_descriptions
-        except Exception:
-            column_descriptions = request.selectable._raw_columns  # type: ignore
-        order_cols = parse_ob_clause(request.selectable)
-        place, backwards = process_args(request.after, request.before, request.page)
-        if backwards:
-            order_cols = [c.reversed for c in order_cols]
-        order_cols_per_request.append(order_cols)
-        mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
-        for i, col in enumerate(list(mapped_ocols)):
-            if col.extra_column is None:
-                continue
-            name = OC(col.extra_column).quoted_full_name
-            if name in extra_column_mappers:
-                mapped_ocols[i] = extra_column_mappers[name]
-                # Since we cache these mappers across different selects, we need
-                # to fix up any ordering here.
-                if mapped_ocols[i].oc.is_ascending != order_cols[i].is_ascending:
-                    mapped_ocols[i] = mapped_ocols[i].reversed
-            else:
-                extra_column_mappers[name] = col
-        mapped_order_columns_per_request.append(mapped_ocols)
+    ordering_infos = _get_ordering_infos(requests, orm=False)
 
-    extra_columns = [col.extra_column for col in extra_column_mappers.values()]
-
-    print(f"Extra columns: {extra_columns}")
-    prepared_queries = [_core_prepare_homogeneous_page(request, s, order_cols_per_request[i], mapped_order_columns_per_request[i], extra_columns, i) for i, request in enumerate(requests)]
+    prepared_queries = [
+        _core_prepare_homogeneous_page(request, s, ordering_infos[i], i)
+        for i, request in enumerate(requests)
+    ]
 
     selectable = union_all(
         *[p.paging_query.select for p in prepared_queries]
     ).order_by(text("_page_identifier"), text("_row_number"))
 
-    """
-    if len(requests) > 1:
-        selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
-    """
-    compiled = selectable.compile(compile_kwargs={"literal_binds": True})
-    print(f"Select statement: {compiled}")
     columns = prepared_queries[0].paging_query.select._raw_columns
-    print(columns)
     selectable = select(*columns).from_statement(selectable)
-    """
-    selectable = select(*[col for col in selectable.columns]).select_from(selectable)
-    selectable = selectable.order_by(text("_page_identifier"), text("_row_number"))
 
-    selectable = select(selectable.subquery()).order_by(text("_page_identifier"), text("_row_number"))
-    """
     compiled = selectable.compile(compile_kwargs={"literal_binds": True})
     print(f"Select from statement: {compiled}")
     selected = s.execute(selectable)
@@ -628,39 +582,78 @@ def select_homogeneous_pages(
         page_to_rows[row._page_identifier].append(row)
 
     pages = []
-    # This is an unfortunate side effect of union_all. It appears when we union_all
-    # a bunch of selects, it changes the "keys" on us in cases where the column
-    # name and python attribute don't match. So we have to execute the first
-    # query standalone to ge the correct keys.
-    """
-    subselect_result = (
-        s.execute(prepared_queries[0].paging_query.select)
-        if len(prepared_queries) > 1 else selected
-    )
-    """
+
     keys = list(selected.keys())
-    print(f"pre-shrunk keys: {keys}")
     N = len(keys) - len(prepared_queries[0].paging_query.extra_columns)
     keys = keys[:N]
-    print(f"post-shrunk keys: {keys}")
-    print(f"Page to rows: {page_to_rows}")
 
     for i in range(len(requests)):
         rows = page_to_rows[i]
-        prepared_query = prepared_queries[i]
-        old_sel = prepared_query.paging_query
-        """
-        mapped_order_columns = []
-        for ocol in prepared_query.paging_query.order_columns:
-            corresponding_column = selectable.corresponding_column(ocol.element)
-            mapped_order_columns.append(find_order_key(OC(corresponding_column), selectable.column_descriptions))
-        key_rows = [tuple(col.get_from_row(row) for col in mapped_order_columns) for row in rows]
-        print(f"key_rows: {key_rows}")
-        sel = _PagingSelect(old_sel.select, old_sel.order_columns, mapped_order_columns, old_sel.extra_columns)
-        pages.append(prepared_queries[i].page_from_rows(rows, sel, keys))
-        """
-        pages.append(prepared_queries[i].page_from_rows(rows, old_sel, keys))
+        pages.append(prepared_queries[i].page_from_rows(rows, keys))
     return pages
+
+
+@dataclass
+class _OrderingInfo:
+    order_cols: list[OC] = field(default_factory=list)
+    mapped_ocols: list[MappedOrderColumn] = field(default_factory=list)
+    extra_columns: list[ColumnElement] = field(default_factory=list)
+
+
+def _get_ordering_infos(requests, orm) -> list[_OrderingInfo]:
+    infos = []
+    extra_column_mappers: dict[str, MappedOrderColumn] = {}
+
+    for request in requests:
+        info = _OrderingInfo()
+        infos.append(info)
+        if orm:
+            if not isinstance(request, OrmPageRequest):
+                raise ValueError("If orm=True then requests must be OrmPageRequests")
+            selectable = orm_to_selectable(q)
+            column_descriptions = q.column_descriptions
+        else:
+            if isinstance(request, OrmPageRequest):
+                raise ValueError("If orm=False then q cannot be a OrmPageRequest")
+            selectable = q
+            try:
+                column_descriptions = q.column_descriptions
+            except Exception:
+                column_descriptions = q._raw_columns  # type: ignore
+
+        order_cols = parse_ob_clause(selectable)
+        place, backwards = process_args(request.after, request.before, request.page)
+        if backwards:
+            order_cols = [c.reversed for c in order_cols]
+        info.order_cols = order_cols
+
+        mapped_ocols = [find_order_key(ocol, column_descriptions) for ocol in order_cols]
+        for i, col in enumerate(list(mapped_ocols)):
+            if col.extra_column is None:
+                continue
+            name = OC(col.extra_column).quoted_full_name
+            if name in extra_column_mappers:
+                mapped_ocols[i] = extra_column_mappers[name]
+                # Since we cache these mappers across different selects, we need
+                # to fix up any ordering here.
+                if mapped_ocols[i].oc.is_ascending != order_cols[i].is_ascending:
+                    mapped_ocols[i] = mapped_ocols[i].reversed
+            else:
+                extra_column_mappers[name] = col
+
+        info.mapped_ocols = mapped_ocols
+
+    extra_columns = [col.extra_column for col in extra_column_mappers.values()]
+    print(f"Extra columns: {extra_columns}")
+    for i, info in enumerate(infos):
+        info.extra_columns = list(extra_columns) + [
+            literal(page_identifier).label("_page_identifier"),
+            func.ROW_NUMBER().over(
+                order_by=[c.uo for c in info.order_cols]
+            ).label("_row_number"),
+        ]
+    
+    return infos
 
 
 @dataclass
@@ -672,9 +665,7 @@ class _PreparedQuery:
 def _core_prepare_homogeneous_page(
     request: PageRequest[_TP],
     s: Union[Session, Connection],
-    order_cols: list[OC],
-    mapped_ocols: list[MappedOrderColumn],
-    extra_columns: list[ColumnElement],
+    info: _OrderingInfo,
     page_identifier: int
 ) -> _PreparedQuery:
     place, backwards = process_args(request.after, request.before, request.page)
@@ -682,30 +673,24 @@ def _core_prepare_homogeneous_page(
     selectable = request.selectable
     result_type = core_result_type(selectable, s)
 
-    clauses = [col.ob_clause for col in mapped_ocols]
+    clauses = [col.ob_clause for col in info.mapped_ocols]
     selectable = selectable.order_by(None).order_by(*clauses)
 
-    extra_columns = list(extra_columns) + [
-        literal(page_identifier).label("_page_identifier"),
-        func.ROW_NUMBER().over(
-            order_by=[c.uo for c in order_cols]
-        ).label("_row_number"),
-    ]
-    selectable = selectable.add_columns(*extra_columns)
+    selectable = selectable.add_columns(*info.extra_columns)
     selectable = _apply_where_and_limit(
         selectable,
         selectable,
         request.per_page,
         place,
         get_bind(q=selectable, s=s).dialect,
-        order_cols,
+        info.order_cols,
         orm=False
     )
-    sel = _PagingSelect(selectable, order_cols, mapped_ocols, extra_columns)
+    sel = _PagingSelect(selectable, info.order_cols, info.mapped_ocols, info.extra_columns)
 
-    def page_from_rows(rows, paging_select, keys):
+    def page_from_rows(rows, keys):
         page = core_page_from_rows(
-            paging_select,
+            sel,
             rows,
             keys,
             result_type,
@@ -719,7 +704,7 @@ def _core_prepare_homogeneous_page(
 
 
 def _orm_prepare_homogeneous_page(
-    request: OrmPageRequest[_TP], page_identifier: int
+    request: OrmPageRequest[_TP], info: _OrderingInfo, page_identifier: int
 ) -> _PreparedQuery:
     place, backwards = process_args(request.after, request.before, request.page)
 
@@ -727,15 +712,27 @@ def _orm_prepare_homogeneous_page(
     result_type = orm_result_type(query)
     keys = orm_query_keys(query)
 
-    paging_query = prepare_paging(
-        q=query,
-        per_page=request.per_page,
-        place=place,
-        backwards=backwards,
-        orm=True,
-        dialect=query.session.get_bind().dialect,
-        page_identifier=page_identifier,
+    clauses = [col.ob_clause for col in info.mapped_ocols]
+    query = query.order_by(None).order_by(*clauses)
+
+    if hasattr(q, "add_columns"):  # ORM or SQLAlchemy 1.4+
+        print(f"Adding extra columns: {info.extra_columns}")
+        query = query.add_columns(*info.extra_columns)
+    else:
+        for col in info.extra_columns:  # SQLAlchemy Core <1.4
+            query = query.column(col)  # type: ignore
+
+    selectable = orm_to_selectable(query)
+    query = _apply_where_and_limit(
+        query,
+        orm_to_selectable(query),
+        request.per_page,
+        place,
+        get_bind(q=selectable, s=s).dialect,
+        info.order_cols,
+        orm=False
     )
+    paging_query = _PagingQuery(query, info.order_cols, info.mapped_ocols, info.extra_columns)
 
     def page_from_rows(rows):
         return orm_page_from_rows(
