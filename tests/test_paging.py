@@ -516,7 +516,7 @@ def test_orm_multiple_pages_empty_queries():
 
 @pytest.mark.skipif(
     SQLA_VERSION < version.parse("1.4.0b1"),
-    reason="Broken in 1.3."
+    reason="Not supported in 1.3."
 )
 def test_core_multiple_pages(no_sqlite_dburl):
     # TODO: Add a test with an order by that adds an extra column.
@@ -529,6 +529,10 @@ def test_core_multiple_pages(no_sqlite_dburl):
         check_multiple_paging_core(qs=qs, s=s)
 
 
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
 def test_core_multiple_pages_select_columns(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
@@ -539,6 +543,10 @@ def test_core_multiple_pages_select_columns(no_sqlite_dburl):
         check_multiple_paging_core(qs=qs, s=s)
 
 
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
 def test_core_multiple_pages_one_query(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
@@ -547,6 +555,10 @@ def test_core_multiple_pages_one_query(no_sqlite_dburl):
         check_multiple_paging_core(qs=qs, s=s)
 
 
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
 def test_core_multiple_pages_one_query_whole_model(no_sqlite_dburl):
     with S(no_sqlite_dburl, echo=ECHO) as s:
         qs = [
