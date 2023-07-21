@@ -18,8 +18,8 @@
 # -- Project information -----------------------------------------------------
 
 project = "sqlakeyset"
-copyright = "2019, Robert Lechte"
-author = "Robert Lechte"
+copyright = "2019-2023, Robert Lechte & Anthony Carapetis"
+author = "Robert Lechte, Anthony Carapetis"
 
 
 # -- General configuration ---------------------------------------------------
@@ -33,7 +33,7 @@ extensions = [
     "sphinx.ext.viewcode",
 ]
 
-intersphinx_mapping = {"sqlalchemy": ("https://docs.sqlalchemy.org/en/13/", None)}
+intersphinx_mapping = {"sqlalchemy": ("https://docs.sqlalchemy.org/en/20/", None)}
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
