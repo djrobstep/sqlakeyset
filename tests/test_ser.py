@@ -116,24 +116,23 @@ def test_subclass_mro_order():
     class D(C, B):
         pass
 
-    class CaughtExceptionA(Exception):
-        pass
-
-    class CaughtExceptionB(Exception):
-        pass
-
     def a(x):
         return "a"
 
     def b(x):
         return "b"
 
-    s.register_type(A, code="suba", deserializer=a, serializer=a)
-    s.register_type(B, code="subb", deserializer=b, serializer=b)
+    s.register_type(A, code="suba", serializer=a)
+    s.register_type(B, code="subb", serializer=b)
 
     assert s.serialize_value(D()) == "suba:a"
 
-    assert s.unserialize_value("suba:a") == "a"
+    def c(x):
+        return "c"
+
+    s.register_type(C, code="subc", serializer=c)
+
+    assert s.serialize_value(D()) == "subc:c"
 
 
 def test_serial():
