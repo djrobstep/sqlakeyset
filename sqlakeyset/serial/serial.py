@@ -9,6 +9,7 @@ import uuid
 import dateutil.parser
 import csv
 from io import StringIO
+from contextlib import suppress
 
 
 class InvalidPage(ValueError):
@@ -82,13 +83,26 @@ TYPES = [
     (datetime.time, "t"),
 ]
 
+
 # These special values are serialized without prefix codes.
 BUILTINS = {
     "x": None,
     "true": True,
     "false": False,
 }
-BUILTINS_INV = {v: k for k, v in BUILTINS.items()}
+
+
+class NotABuiltin(Exception):
+    pass
+
+
+def invert_builtin(x) -> str:
+    for k, v in BUILTINS.items():
+        if x is v:
+            return k
+
+    raise NotABuiltin()
+
 
 T = TypeVar("T")
 
@@ -148,28 +162,33 @@ class Serial(object):
             return None
         return tuple(self.unserialize_value(_) for _ in self.split(s))
 
-    def serialize_value(self, x) -> str:
-        try:
-            serializer = self.serializers[type(x)]
-        except KeyError:
-            pass  # fall through to builtins
-        else:
-            try:
-                c, x = serializer(x)
-            except Exception as e:
-                raise PageSerializationError(
-                    "Custom bookmark serializer " "encountered error"
-                ) from e
-            else:
-                return "{}:{}".format(c, x)
+    def get_serializer(self, x):
+        for cls in type(x).__mro__:
+            with suppress(KeyError):
+                return self.serializers[cls]
 
-        try:
-            return BUILTINS_INV[x]
-        except KeyError:
+        return None
+
+    def serialize_value(self, x) -> str:
+        with suppress(NotABuiltin):
+            return invert_builtin(x)
+
+        serializer = self.get_serializer(x)
+
+        if serializer is None:
             raise UnregisteredType(
                 "Don't know how to serialize type of {} ({}). "
                 "Use custom_bookmark_type to register it.".format(x, type(x))
             )
+
+        try:
+            c, x = serializer(x)
+        except Exception as e:
+            raise PageSerializationError(
+                "Custom bookmark serializer " "encountered error"
+            ) from e
+
+        return "{}:{}".format(c, x)
 
     def unserialize_value(self, x: str):
         try:
