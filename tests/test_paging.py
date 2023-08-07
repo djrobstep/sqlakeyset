@@ -13,24 +13,36 @@ which will execute the tests for python 3.11 and sqlalchemy ~=2.0.0 using
 docker containers. (Available python versions are 3.7, 3.8, 3.9, 3.10, 3.11 and
 valid sqlalchemy versions are 1.3.0, 1.4.0, 2.0.0.)"""
 import warnings
+from collections import deque
+from dataclasses import dataclass
 from packaging import version
+from typing import Any, Optional, Tuple, Union
 
 import pytest
 import sqlalchemy
-from sqlalchemy.orm import sessionmaker, aliased, Bundle
+from sqlalchemy.orm import sessionmaker, aliased, Bundle, Query
 from sqlalchemy import (
     desc,
     func,
 )
+from sqlalchemy.sql.expression import literal
+from sqlalchemy.sql.selectable import Select
 
 from sqlakeyset import (
+    get_homogeneous_pages,
     get_page,
+    select_homogeneous_pages,
     select_page,
     serialize_bookmark,
     unserialize_bookmark,
     InvalidPage,
+    OrmPageRequest,
+    PageRequest,
 )
 from sqlakeyset.paging import process_args
+from sqlakeyset.results import Page
+from sqlakeyset.sqla import SQLA_VERSION
+from sqlakeyset.types import MarkerLike
 from conftest import (
     Book,
     Author,
@@ -49,6 +61,48 @@ from conftest import (
 warnings.simplefilter("error")
 
 
+@dataclass
+class _PageTracker:
+    query: Union[Query, Select]
+    unpaged: list
+    gathered: deque
+    backwards: bool
+    page: Tuple[Union[MarkerLike, str], bool]
+    selected: Any = None
+    page_with_paging: Optional[Page] = None
+
+
+def assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page):
+    """Returns the next page, or None if no further pages.
+
+    Modifies gathered in place.
+    """
+    paging = page_with_paging.paging
+
+    assert paging.current == page
+
+    if backwards:
+        gathered.extendleft(reversed(page_with_paging))
+    else:
+        gathered.extend(page_with_paging)
+
+    if len(gathered) < len(unpaged):
+        # Ensure each page is the correct size
+        assert len(page_with_paging) == per_page
+        assert paging.has_further
+    else:
+        assert not paging.has_further
+
+    if not page_with_paging:
+        assert not paging.has_further
+        assert paging.further == paging.current
+        assert paging.current_opposite == (None, not paging.backwards)
+        # Is this return None necessary or will paging.further just be None?
+        return None
+
+    return paging.further
+
+
 def check_paging_orm(q):
     item_counts = range(1, 12)
 
@@ -56,7 +110,7 @@ def check_paging_orm(q):
 
     for backwards in [False, True]:
         for per_page in item_counts:
-            gathered = []
+            gathered = deque()
 
             page = None, backwards
 
@@ -65,32 +119,68 @@ def check_paging_orm(q):
                 page = unserialize_bookmark(serialized_page)
 
                 page_with_paging = get_page(q, per_page=per_page, page=serialized_page)
-                paging = page_with_paging.paging
-
-                assert paging.current == page
-
-                if backwards:
-                    gathered = page_with_paging + gathered
-                else:
-                    gathered = gathered + page_with_paging
-
-                page = paging.further
-
-                if len(gathered) < len(unpaged):
-                    # Ensure each page is the correct size
-                    assert paging.has_further
-                    assert len(page_with_paging) == per_page
-                else:
-                    assert not paging.has_further
-
-                if not page_with_paging:
-                    assert not paging.has_further
-                    assert paging.further == paging.current
-                    assert paging.current_opposite == (None, not paging.backwards)
+                page = assert_paging_orm(page_with_paging, gathered, backwards, unpaged, page, per_page)
+                if page is None:
                     break
 
             # Ensure union of pages is original q.all()
-            assert gathered == unpaged
+            assert list(gathered) == unpaged
+
+
+def check_multiple_paging_orm(qs):
+    page_trackers = [
+        _PageTracker(
+            query=q,
+            gathered=deque(),
+            backwards=(i % 2 == 0),
+            page=(None, i % 2 == 0),
+            unpaged=q.all(),
+        )
+        for i, q in enumerate(qs)
+    ]
+    while True:
+        for t in page_trackers:
+            t.page = unserialize_bookmark(serialize_bookmark(t.page))
+
+        page_requests = [
+            OrmPageRequest(query=t.query, per_page=i + 1, page=t.page) for i, t in enumerate(page_trackers)
+        ]
+        pages_with_paging = get_homogeneous_pages(page_requests)
+        for p, t in zip(pages_with_paging, page_trackers):
+            t.page_with_paging = p
+
+        for i, t in enumerate(list(page_trackers)):
+            page = assert_paging_orm(t.page_with_paging, t.gathered, t.backwards, t.unpaged, t.page, i + 1)
+            if page is None:
+                # Ensure union of pages is original q.all()
+                assert list(t.gathered) == t.unpaged
+                page_trackers.remove(t)
+                continue
+
+            t.page = page
+
+        if not page_trackers:
+            break
+
+
+def assert_paging_core(page_with_paging, gathered, backwards, result, page, per_page):
+    paging = page_with_paging.paging
+
+    assert paging.current == page
+    assert page_with_paging.keys() == result.keys()
+
+    if backwards:
+        gathered.extendleft(reversed(page_with_paging))
+    else:
+        gathered.extend(page_with_paging)
+
+    if not page_with_paging:
+        assert not paging.has_further
+        assert paging.further == paging.current
+        assert paging.current_opposite == (None, not paging.backwards)
+        return None
+
+    return paging.further
 
 
 def check_paging_core(selectable, s):
@@ -101,7 +191,7 @@ def check_paging_core(selectable, s):
 
     for backwards in [False, True]:
         for per_page in item_counts:
-            gathered = []
+            gathered = deque()
 
             page = None, backwards
 
@@ -112,25 +202,48 @@ def check_paging_core(selectable, s):
                 page_with_paging = select_page(
                     s, selectable, per_page=per_page, page=serialized_page
                 )
-                paging = page_with_paging.paging
-
-                assert paging.current == page
-                assert page_with_paging.keys() == result.keys()
-
-                if backwards:
-                    gathered = page_with_paging + gathered
-                else:
-                    gathered = gathered + page_with_paging
-
-                page = paging.further
-
-                if not page_with_paging:
-                    assert not paging.has_further
-                    assert paging.further == paging.current
-                    assert paging.current_opposite == (None, not paging.backwards)
+                page = assert_paging_core(page_with_paging, gathered, backwards, result, page, per_page)
+                if page is None:
                     break
 
-            assert gathered == unpaged
+            assert list(gathered) == unpaged
+
+
+def check_multiple_paging_core(qs, s):
+    page_trackers = [
+        _PageTracker(
+            query=q,
+            gathered=deque(),
+            backwards=(i % 2 == 0),
+            page=(None, i % 2 == 0),
+            selected=s.execute(q),
+            unpaged=s.execute(q).fetchall(),
+        )
+        for i, q in enumerate(qs)
+    ]
+    while True:
+        for t in page_trackers:
+            t.page = unserialize_bookmark(serialize_bookmark(t.page))
+
+        page_requests = [
+            PageRequest(selectable=t.query, per_page=i + 1, page=t.page) for i, t in enumerate(page_trackers)
+        ]
+        pages_with_paging = select_homogeneous_pages(page_requests, s)
+        for p, t in zip(pages_with_paging, page_trackers):
+            t.page_with_paging = p
+
+        for i, t in enumerate(list(page_trackers)):
+            page = assert_paging_core(t.page_with_paging, t.gathered, t.backwards, t.selected, t.page, i + 1)
+            if page is None:
+                # Ensure union of pages is original q.all()
+                assert list(t.gathered) == t.unpaged, f"Different elements for tracker {t}"
+                page_trackers.remove(t)
+                continue
+
+            t.page = page
+
+        if not page_trackers:
+            break
 
 
 def test_orm_query1(dburl):
@@ -361,6 +474,124 @@ def test_orm_joined_inheritance(joined_inheritance_dburl):
         check_paging_orm(q=q)
 
 
+def test_orm_multiple_pages(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Book).order_by(Book.name, Book.id),
+            s.query(Book).filter(Book.author_id == 1).order_by(Book.id),
+            s.query(Book).order_by(Book.name, Book.id.desc()),
+        ]
+        check_multiple_paging_orm(qs=qs)
+
+
+def test_orm_multiple_pages_select_columns(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id),
+            s.query(Book.name, Book.author_id, Book.id).filter(Book.author_id == 1).order_by(Book.id),
+            s.query(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id.desc()),
+        ]
+        check_multiple_paging_orm(qs=qs)
+
+
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
+def test_orm_multiple_pages_different_extra_columns(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Book.name).order_by(Book.b, Book.id),
+            s.query(Book.name).order_by(Book.id),
+            s.query(Book.name).order_by(Book.c, Book.id),
+        ]
+        check_multiple_paging_orm(qs=qs)
+
+
+def test_orm_multiple_pages_one_query(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            s.query(Book).order_by(Book.id),
+        ]
+        check_multiple_paging_orm(qs=qs)
+
+
+def test_orm_multiple_pages_empty_queries():
+    assert get_homogeneous_pages([]) == []
+
+
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
+def test_core_multiple_pages(no_sqlite_dburl):
+    # TODO: Add a test with an order by that adds an extra column.
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book).order_by(Book.name, Book.id),
+            select(Book).where(Book.author_id == 1).order_by(Book.id),
+            select(Book).order_by(Book.name, Book.id.desc()),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
+def test_core_multiple_pages_select_columns(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id),
+            select(Book.name, Book.author_id, Book.id).where(Book.author_id == 1).order_by(Book.id),
+            select(Book.name, Book.author_id, Book.id).order_by(Book.name, Book.id.desc()),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
+def test_core_multiple_pages_different_extra_columns(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book.name).order_by(Book.b, Book.id),
+            select(Book.name).order_by(Book.id),
+            select(Book.name).order_by(Book.c, Book.id),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
+def test_core_multiple_pages_one_query(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book.a, Book.b).order_by(Book.id),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Not supported in 1.3."
+)
+def test_core_multiple_pages_one_query_whole_model(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        qs = [
+            select(Book).order_by(Book.id),
+        ]
+        check_multiple_paging_core(qs=qs, s=s)
+
+
+def test_core_multiple_pages_empty_queries(no_sqlite_dburl):
+    with S(no_sqlite_dburl, echo=ECHO) as s:
+        assert select_homogeneous_pages([], s) == []
+
+
 def test_core(dburl):
     selectable = (
         select(Book.b, Book.d, Book.id, Book.c)
@@ -374,6 +605,21 @@ def test_core(dburl):
     # Check again with a connection instead of session (see #37):
     with S(dburl, echo=ECHO) as s:
         check_paging_core(selectable=selectable, s=s.connection())
+
+
+@pytest.mark.skipif(
+    SQLA_VERSION < version.parse("1.4.0b1"),
+    reason="Broken in 1.3."
+)
+def test_core_whole_model_plus_other_columns(dburl):
+    selectable = (
+        select(Book, literal(0))
+        .where(Book.id < 10)
+        .order_by(Book.id)
+    )
+
+    with S(dburl, echo=ECHO) as s:
+        check_paging_core(selectable=selectable, s=s)
 
 
 def test_core2(dburl):

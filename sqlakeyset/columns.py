@@ -366,9 +366,8 @@ def derive_order_key(ocol, desc, index):
         else:
             return None
 
-    entity = desc["entity"]
     expr = desc["expr"]
-
+    entity = desc.get("entity")
     if isinstance(expr, Bundle):
         for key, col in dict(expr.columns).items():
             if strip_labels(col).compare(ocol.comparable_value):
@@ -409,7 +408,7 @@ def derive_order_key(ocol, desc, index):
 
     # is an attribute with label
     try:
-        if ocol.quoted_full_name == OC(expr).full_name:
+        if ocol.quoted_full_name == OC(expr).quoted_full_name:
             return DirectColumn(ocol, index)
     except sqlalchemy.exc.ArgumentError:
         pass

@@ -246,6 +246,7 @@ SUPPORTED_ENGINES = ["sqlite", "postgresql", "mysql"]
 
 dburl = pytest.fixture(params=SUPPORTED_ENGINES)(_dburl)
 no_mysql_dburl = pytest.fixture(params=["sqlite", "postgresql"])(_dburl)
+no_sqlite_dburl = pytest.fixture(params=["mysql", "postgresql"])(_dburl)
 pg_only_dburl = pytest.fixture(params=["postgresql"])(_dburl)
 
 
