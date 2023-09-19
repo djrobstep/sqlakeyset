@@ -60,13 +60,14 @@ class OC:
     :class:`sqlalchemy.sql.expression.ColumnElement` appearing in the ORDER BY
     clause of a query we are paging."""
 
-    def __init__(self, x):
+    def __init__(self, x, enable_warnings=True):
         if isinstance(x, str):
             x = column(x)
         if _get_order_direction(x) is None:
             x = asc(x)
         self.uo = x
-        _warn_if_nullable(self.comparable_value)
+        if enable_warnings:
+            _warn_if_nullable(self.comparable_value)
         self.full_name = str(self.element)
         try:
             table_name, name = self.full_name.split(".", 1)
@@ -409,7 +410,7 @@ def derive_order_key(ocol, desc, index):
 
     # is an attribute with label
     try:
-        if ocol.quoted_full_name == OC(expr).full_name:
+        if ocol.quoted_full_name == OC(expr, enable_warnings=False).full_name:
             return DirectColumn(ocol, index)
     except sqlalchemy.exc.ArgumentError:
         pass

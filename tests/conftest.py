@@ -20,7 +20,6 @@ from sqlakeyset import custom_bookmark_type
 from sqlalchemy_utils import ArrowType
 
 SQLA2 = SQLA_VERSION >= version.parse("1.4")
-
 if not SQLA2:
     # This block needs to be before the sqla2 block for type hints to work correctly??
     # Thus the backwards if-else.
@@ -37,6 +36,12 @@ else:
 
 class Base(declarative_base()):
     __abstract__ = True
+
+    def _as_dict(self):
+        return {k: getattr(self, k) for k, v in self.__mapper__.columns.items()}
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self._as_dict() == other._as_dict()
 
     def __repr__(self):
         try:

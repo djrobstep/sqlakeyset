@@ -17,7 +17,7 @@ from packaging import version
 
 import pytest
 import sqlalchemy
-from sqlalchemy.orm import sessionmaker, aliased, Bundle
+from sqlalchemy.orm import Session, sessionmaker, aliased, Bundle
 from sqlalchemy import (
     desc,
     func,
@@ -96,7 +96,10 @@ def check_paging_orm(q):
 def check_paging_core(selectable, s):
     item_counts = range(1, 12)
 
-    result = s.execute(selectable)
+    if isinstance(s, Session):
+        result = s.execute(selectable)
+    else:
+        result = Session(bind=s).execute(selectable)
     unpaged = result.fetchall()
 
     for backwards in [False, True]:
