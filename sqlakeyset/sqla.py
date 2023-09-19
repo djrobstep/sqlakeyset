@@ -5,6 +5,7 @@ import sqlalchemy
 from packaging import version
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.scoping import ScopedSession
 
 
 SQLA_VERSION = version.parse(sqlalchemy.__version__)
@@ -14,6 +15,7 @@ try:
     from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession
 except ImportError:
     if not TYPE_CHECKING:
+
         class AsyncConnection:
             pass
 
@@ -35,6 +37,17 @@ def get_bind(
         return s.sync_engine
     else:
         raise ValueError(f"{s} is not a (sync/async) Engine, Connection or Session.")
+
+
+def get_session(s: Union[Engine, Connection, Session, ScopedSession]) -> Session:
+    if isinstance(s, Session):
+        return s
+    elif isinstance(s, ScopedSession):
+        return s()
+    elif isinstance(s, (Engine, Connection)):
+        return Session(bind=s)
+    else:
+        raise ValueError(f"{s} is not an Engine, Connection or Session.")
 
 
 if SQLA_VERSION < version.parse("1.4.0b1"):

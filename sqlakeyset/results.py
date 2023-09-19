@@ -101,7 +101,9 @@ def unserialize_bookmark(bookmark: str) -> Marker:
 _Row = TypeVar("_Row", bound=Sequence, covariant=True)
 
 
-class Page(list, Sequence[_Row]):  # Can't subclass List[_Row] directly because _Row is covariant
+class Page(
+    list, Sequence[_Row]
+):  # Can't subclass List[_Row] directly because _Row is covariant
     """A :class:`list` of result rows with access to paging information and
     some convenience methods."""
 

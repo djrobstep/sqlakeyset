@@ -31,6 +31,7 @@ from .sqla import (
     core_coerce_row,
     core_result_type,
     get_bind,
+    get_session,
     group_by_clauses,
     orm_coerce_row,
     orm_query_keys,
@@ -260,7 +261,7 @@ def orm_get_page(
 
 
 def core_get_page(
-    s: Union[Session, Connection],
+    s: Session,
     selectable: Select[_TP],
     per_page: int,
     place: Optional[Keyset],
@@ -406,7 +407,8 @@ def select_page(
     """
     place, backwards = process_args(after, before, page)
 
-    return core_get_page(s, selectable, per_page, place, backwards)
+    session = get_session(s)
+    return core_get_page(session, selectable, per_page, place, backwards)
 
 
 def get_page(
