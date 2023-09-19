@@ -173,3 +173,9 @@ def test_new_orm_recursive_cte(pg_only_dburl):
         )
 
         check_paging_core(q, s)
+
+
+def test_new_orm_query_using_connection(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = select(Book).order_by(Book.id, Book.name)
+        check_paging_core(q, s.connection())
