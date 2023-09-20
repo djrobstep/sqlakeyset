@@ -40,6 +40,7 @@ from conftest import (
     Vertebrate,
     Mammal,
     Light,
+    Widget,
     select,
     JoinedInheritanceBase,
     Base,
@@ -433,6 +434,12 @@ def test_core_result_processor(dburl):
 def test_core_order_by_result_processor(dburl):
     with S(dburl, echo=ECHO) as s:
         selectable = select(Light.id).order_by(Light.myint, Light.id)
+        check_paging_core(selectable=selectable, s=s)
+
+
+def test_core_non_declarative(dburl):
+    with S(dburl, echo=ECHO) as s:
+        selectable = select(Widget).order_by(Widget.c.id)
         check_paging_core(selectable=selectable, s=s)
 
 

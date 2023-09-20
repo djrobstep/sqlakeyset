@@ -6,7 +6,17 @@ from random import randrange
 import arrow
 import pytest
 from packaging import version
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, func, inspect
+from sqlalchemy import (
+    Column,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    func,
+    insert,
+    inspect,
+)
 from sqlalchemy import select as _select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property, relationship
@@ -153,6 +163,14 @@ class Author(Base):
         )
 
 
+Widget = Table(
+    "widget",
+    Base.metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String(255)),
+)
+
+
 JoinedInheritanceBase = declarative_base()
 
 
@@ -240,10 +258,13 @@ def _dburl(request):
         Light(colour=Colour(i % 3), intensity=(i * 13) % 53, myint=i) for i in range(99)
     ]
 
+    widgets = [dict(name=f"widget {i}") for i in range(99)]
+
     with temporary_database(request.param, host="localhost") as dburl:
         with S(dburl) as s:
             Base.metadata.create_all(s.connection())
             s.add_all(data)
+            s.execute(insert(Widget).values(widgets))
         yield dburl
 
 
