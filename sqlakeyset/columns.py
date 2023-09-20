@@ -10,7 +10,7 @@ from warnings import warn
 import sqlalchemy
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from sqlalchemy import asc, column
+from sqlalchemy import Table, asc, column
 from sqlalchemy.orm import Bundle, Mapper, class_mapper
 from sqlalchemy.orm.attributes import QueryableAttribute
 from sqlalchemy.sql.elements import _label_reference
@@ -357,8 +357,9 @@ def derive_order_key(ocol, desc, index):
 
     :param ocol: The :class:`OC` to look up.
     :param desc: Either a column description as in
-        :attr:`sqlalchemy.orm.query.Query.column_descriptions`, or a
-        :class:`sqlalchemy.sql.expression.ColumnElement`.
+        :attr:`sqlalchemy.orm.query.Query.column_descriptions`, a
+        :class:`sqlalchemy.sql.expression.ColumnElement` or a
+        :class:`sqlalchemy.Table`.
 
     :returns: Either a :class:`MappedOrderColumn` or `None`."""
     if isinstance(desc, ColumnElement):
@@ -366,9 +367,12 @@ def derive_order_key(ocol, desc, index):
             return DirectColumn(ocol, index)
         else:
             return None
-
-    entity = desc.get("entity")
-    expr = desc["expr"]
+    elif isinstance(desc, Table):
+        entity = None
+        expr = desc
+    else:
+        entity = desc.get("entity")
+        expr = desc["expr"]
 
     if isinstance(expr, Bundle):
         for key, col in dict(expr.columns).items():
