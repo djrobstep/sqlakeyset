@@ -1,7 +1,7 @@
 """Methods for messing with the internals of SQLAlchemy 1.4/2.0 results."""
 from __future__ import annotations
 
-from sqlalchemy.engine.result import result_tuple
+from sqlalchemy.engine.result import SimpleResultMetaData, result_tuple
 from sqlalchemy.engine.row import Row
 
 from .constants import ORDER_COL_PREFIX
@@ -60,7 +60,7 @@ def orm_coerce_row(row, extra_columns, result_type):
 def core_result_type(selectable, s):
     """Given a SQLAlchemy Core selectable and a connection/session, get the
     type constructor for the result row type."""
-    # Unused in sqlalchemy 1.4: see core_coerce_row implementation
+    # Unused in sqlalchemy 1.4+: see core_coerce_row implementation
     return None
 
 
@@ -98,6 +98,8 @@ def core_coerce_row(row: Row, extra_columns, result_type) -> Row:
     N = len(row) - len(extra_columns)
 
     parent = row._parent
+    if isinstance(parent, SimpleResultMetaData):
+        parent = parent._reduce(list(parent.keys)[:N])
     processors = None  # Processors are applied immediately in sqla1.4+
     data = row._data[:N]
 
@@ -105,7 +107,7 @@ def core_coerce_row(row: Row, extra_columns, result_type) -> Row:
         # 2.0.11+
         structure = (
             {  # Strip out added OCs from the keymap:
-                k: row[v]
+                k: v
                 for k, v in row._key_to_index.items()
                 if not (isinstance(k, str) and k.startswith(ORDER_COL_PREFIX))
             },

@@ -178,6 +178,26 @@ def test_orm_bad_page(dburl):
             get_page(q, per_page=10, page=((1, 1), False))
 
 
+def test_orm_row_mapping(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = s.query(Book.id, Book.author_id).order_by(Book.name, Book.id)
+        orig = q.first()
+        new = get_page(q, per_page=2)[0]
+        omap = orig._mapping
+        nmap = new._mapping
+        assert dict(omap) == dict(nmap)
+
+
+def test_core_row_mapping(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = select(Book.id, Book.author_id).order_by(Book.name, Book.id)
+        orig = s.execute(q).first()
+        new = select_page(s, q, per_page=2)[0]
+        omap = orig._mapping
+        nmap = new._mapping
+        assert dict(omap) == dict(nmap)
+
+
 def test_orm_order_by_arrowtype(dburl):
     with S(dburl, echo=ECHO) as s:
         q = s.query(Book).order_by(Book.published_at, Book.id)
