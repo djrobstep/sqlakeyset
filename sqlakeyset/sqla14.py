@@ -1,5 +1,6 @@
 """Methods for messing with the internals of SQLAlchemy >1.3 results."""
 from __future__ import annotations
+from sqlalchemy.engine.result import SimpleResultMetaData
 from sqlalchemy.engine.row import LegacyRow
 
 from .constants import ORDER_COL_PREFIX
@@ -37,8 +38,12 @@ def core_coerce_row(row, extra_columns, result_type):
     else:
         cls = TruncatedRow
 
+    parent = row._parent
+    if isinstance(parent, SimpleResultMetaData):
+        parent = parent._reduce(list(parent.keys)[:N])
+
     return cls(
-        row._parent,
+        parent,
         None,  # Processors are applied immediately in sqla1.4+
         {  # Strip out added OCs from the keymap:
             k: v
