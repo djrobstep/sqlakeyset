@@ -171,7 +171,7 @@ def test_orm_bad_page(dburl):
 
         # check that malformed page tuple fails
         with pytest.raises(InvalidPage):
-            get_page(q, per_page=10, page=((1,), False, "Potatoes"))
+            get_page(q, per_page=10, page=((1,), False, "Potatoes"))  # type: ignore
 
         # one order col, so check place with 2 elements fails
         with pytest.raises(InvalidPage):
@@ -522,14 +522,14 @@ def test_orm_custom_session_bind(dburl):
         # implementation of get_bind() and no .bind attribute:
         s._custom_bind = s.bind
         delattr(s, "bind")
-        s.get_bind = lambda *a, **k: s._custom_bind
+        s.get_bind = lambda *_, **__: s._custom_bind
 
         q = s.query(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
         check_paging_orm(q=q)
 
 
 def test_multiple_engines(dburl, joined_inheritance_dburl):
-    kw = {"future": True} if SQLA2 else {}
+    kw: dict = {"future": True} if SQLA2 else {}
     eng = sqlalchemy.create_engine(dburl, **kw)
     eng2 = sqlalchemy.create_engine(joined_inheritance_dburl, **kw)
     session_factory = sessionmaker(bind=eng, **kw)
