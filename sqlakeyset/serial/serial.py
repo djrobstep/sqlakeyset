@@ -134,9 +134,9 @@ class Serial(object):
         if deserializer is None:
             deserializer = type
         if type in self.serializers:
-            raise ConfigurationError("Type {type} already has a serializer registered.")
+            raise ConfigurationError(f"Type {type} already has a serializer registered.")
         if code in self.deserializers:
-            raise ConfigurationError("Type code {code} is already in use.")
+            raise ConfigurationError(f"Type code {code} is already in use.")
         self.serializers[type] = lambda x: (code, serializer(x))
         self.deserializers[code] = deserializer
 
