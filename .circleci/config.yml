@@ -95,7 +95,8 @@ jobs:
             . ~/.venv/bin/activate
             python deploy/vbump.py
             poetry build
-            poetry publish --username $PYPI_USERNAME --password $PYPI_PASSWORD
+            poetry config pypi-token.pypi "$PYPI_API_TOKEN"
+            poetry publish
 
 
 workflows:
