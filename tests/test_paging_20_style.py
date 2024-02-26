@@ -8,6 +8,7 @@ from conftest import (
     SQLA_VERSION,
     Author,
     Book,
+    Ticket,
     S,
 )
 from test_paging import check_paging_core
@@ -16,6 +17,12 @@ if SQLA_VERSION < version.parse("1.4.0b1"):
     pytest.skip(
         "Legacy SQLAlchemy version, skipping new-style tests", allow_module_level=True
     )
+
+
+def test_uuid(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = select(Ticket).order_by(Ticket.id)
+        check_paging_core(q, s)
 
 
 def test_new_orm_query1(dburl):
