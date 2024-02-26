@@ -2,6 +2,7 @@ import enum
 from datetime import timedelta
 from functools import partial
 from random import randrange
+import uuid
 
 import arrow
 import pytest
@@ -43,6 +44,23 @@ else:
     select = _select
     S = partial(_S, future=True)
 
+if SQLA_VERSION >= version.parse("2.0"):
+    from sqlalchemy.types import Uuid
+else:
+    # On older sqlalchemy we don't run the uuid tests anyway, so this is good enough
+    class Uuid(TypeDecorator):
+        impl = String
+        cache_ok = True
+
+        def process_result_value(self, value, dialect):
+            return uuid.UUID(hex=value) if value is not None else None
+
+        def process_bind_param(self, value, dialect):
+            return value.hex if value is not None else None
+
+        def __init__(self):
+            super().__init__(32)
+
 
 class Base(declarative_base()):
     __abstract__ = True
@@ -51,7 +69,7 @@ class Base(declarative_base()):
         return {k: getattr(self, k) for k, v in self.__mapper__.columns.items()}
 
     def __eq__(self, other):
-        return type(self) == type(other) and self._as_dict() == other._as_dict()
+        return type(self) is type(other) and self._as_dict() == other._as_dict()
 
     def __repr__(self):
         try:
@@ -75,30 +93,57 @@ def randtime():
 
 
 # Custom type to guard against double processing: see issue #47
-class MyInteger(float):
+class MyInteger:
+    val: int
+
+    def __init__(self, val: int):
+        self.val = val
+
+    def __eq__(self, other):
+        if isinstance(other, MyInteger):
+            return self.val == other.val
+        return other == self  # for SQL
+
+    def __hash__(self):
+        return hash(self.val)
+
+    def __str__(self):
+        return str(self.val)
+
+    def __repr__(self):
+        return f"MyInteger({self.val})"
+
+
+custom_bookmark_type(
+    MyInteger,
+    "mi",
+    serializer=lambda mi: str(mi.val),
+    deserializer=lambda s: MyInteger(int(s)),
+)
+
+
+class DoubleProcessing(Exception):
     pass
 
 
-custom_bookmark_type(MyInteger, "mi")
-
-
-class DoubleResultProcessing(Exception):
-    pass
-
-
-class GuardDoubleResultProcessing(TypeDecorator):
+class GuardDoubleProcessing(TypeDecorator):
     impl = Integer
     cache_ok = True
 
     def process_result_value(self, value, dialect):
         if isinstance(value, MyInteger):
-            raise DoubleResultProcessing(
-                "Result processor was called on an already processed value!"
+            raise DoubleProcessing(
+                f"Result processor was called on an already processed value: {value!r}"
             )
+        assert isinstance(value, int)
         return MyInteger(value)
 
     def process_bind_param(self, value, dialect):
-        return float(value)
+        if isinstance(value, int):
+            raise DoubleProcessing(
+                f"Bind processor was called on an already processed value: {value!r} is not a MyInteger"
+            )
+        return value.val
 
 
 class Colour(enum.Enum):
@@ -120,7 +165,7 @@ class Light(Base):
     id = Column(Integer, primary_key=True)
     intensity = Column(Integer, nullable=False)
     colour = Column(Enum(Colour), nullable=False)
-    myint = Column(GuardDoubleResultProcessing, nullable=False)
+    myint = Column(GuardDoubleProcessing, nullable=False)
 
 
 class Book(Base):
@@ -222,6 +267,11 @@ class Mammal(Vertebrate):
     }
 
 
+class Ticket(Base):
+    __tablename__ = "ticket"
+    id = Column(Uuid, primary_key=True)
+
+
 def _dburl(request):
     count = 10
     data = []
@@ -255,10 +305,13 @@ def _dburl(request):
             data.append(b)
 
     data += [
-        Light(colour=Colour(i % 3), intensity=(i * 13) % 53, myint=i) for i in range(99)
+        Light(colour=Colour(i % 3), intensity=(i * 13) % 53, myint=MyInteger(i))
+        for i in range(99)
     ]
 
     widgets = [dict(name=f"widget {i}") for i in range(99)]
+
+    data += [Ticket(id=uuid.uuid4()) for _ in range(100)]
 
     with temporary_database(request.param, host="localhost") as dburl:
         with S(dburl) as s:

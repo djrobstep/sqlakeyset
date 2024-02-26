@@ -462,6 +462,10 @@ def test_core_result_processor(dburl):
 
 def test_core_order_by_result_processor(dburl):
     with S(dburl, echo=ECHO) as s:
+        # Check both 1-col and multicol ordering clauses (see #104):
+        selectable = select(Light.id).order_by(Light.myint)
+        check_paging_core(selectable=selectable, s=s)
+
         selectable = select(Light.id).order_by(Light.myint, Light.id)
         check_paging_core(selectable=selectable, s=s)
 

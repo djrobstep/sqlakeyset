@@ -52,22 +52,15 @@ PER_PAGE_DEFAULT = 10
 SUPPORTS_NATIVE_TUPLE_COMPARISON = ("postgresql", "mysql", "sqlite")
 
 
-def compare_tuples(
-    lesser: Sequence, greater: Sequence, dialect: Optional[Dialect] = None
-) -> ColumnElement[bool]:
+def compare_tuples(lesser: Sequence, greater: Sequence) -> ColumnElement[bool]:
     """Given two sequences of equal length (whose entries can be SQL clauses or
-    simple values), create an SQL clause defining the lexicographic tuple
-    comparison ``lesser < greater``.
-
-    If ``dialect`` is provided and is an sqlalchemy SQL dialect supporting
-    native tuple comparison, the SQL emitted is a native tuple comparison.
-    Otherwise it is built manually using OR and AND."""
+    simple values), create a simple SQL clause equivalent to the lexicographic
+    tuple comparison ``lesser < greater``."""
     if len(lesser) != len(greater):
         raise ValueError("Tuples must have same length to be compared!")
-    if len(lesser) == 1:
-        return lesser[0] < greater[0]
-    if dialect is not None and dialect.name.lower() in SUPPORTS_NATIVE_TUPLE_COMPARISON:
-        return tuple_(*lesser) < tuple_(*greater)
+
+    # This monster comprehension is just the long way of writing the
+    # lexicographic comparison lesser < greater
     return or_(
         *[
             and_(
@@ -98,11 +91,21 @@ def where_condition_for_page(
             "Page marker has different column count to query's order clause"
         )
 
+    native_tuple = (
+        len(place) > 1 and dialect.name.lower() in SUPPORTS_NATIVE_TUPLE_COMPARISON
+    )
+
     zipped = zip(ordering_columns, place)
-    swapped = [c.pair_for_comparison(value, dialect) for c, value in zipped]
+    swapped = [
+        c.pair_for_comparison(value, dialect, apply_bind_processor=native_tuple)
+        for c, value in zipped
+    ]
     row, place_row = zip(*swapped)
 
-    return compare_tuples(greater=row, lesser=place_row, dialect=dialect)
+    if native_tuple:
+        return tuple_(*place_row) < tuple_(*row)
+    else:
+        return compare_tuples(lesser=place_row, greater=row)
 
 
 class _PagingQuery(NamedTuple):
