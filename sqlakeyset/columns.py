@@ -111,7 +111,7 @@ class OC:
             raise ValueError  # pragma: no cover
         return OC(new_uo)
 
-    def pair_for_comparison(self, value, dialect):
+    def pair_for_comparison(self, value, dialect, apply_bind_processor: bool = False):
         """Return a pair of SQL expressions representing comparable values for
         this ordering column and a specified value.
 
@@ -122,12 +122,13 @@ class OC:
             condition for the value of this OC being past `value` in the paging
             order."""
         compval = self.comparable_value
-        # If this OC is a column with a custom type, apply the custom
-        # preprocessing to the comparsion value:
-        try:
-            value = compval.type.bind_processor(dialect)(value)  # type: ignore
-        except (TypeError, AttributeError):
-            pass
+        if apply_bind_processor:
+            # If this OC is a column with a custom type, apply the custom
+            # preprocessing to the comparison value:
+            try:
+                value = compval.type.bind_processor(dialect)(value)  # type: ignore
+            except (TypeError, AttributeError):
+                pass
         if self.is_ascending:
             return compval, value
         else:
