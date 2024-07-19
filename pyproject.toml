@@ -33,7 +33,7 @@ arrow = "*"
 toml = ">=0.10.0,<0.11"
 sqlalchemy = {extras = ["asyncio"], version = "^2.0.7"}
 aiosqlite = "^0.18.0"
-asyncpg = "^0.27.0"
+asyncpg = ">=0.27.0"
 aiomysql = "^0.1.1"
 
 [tool.isort]
