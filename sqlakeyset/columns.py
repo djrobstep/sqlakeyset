@@ -126,7 +126,8 @@ class OC:
             # If this OC is a column with a custom type, apply the custom
             # preprocessing to the comparison value:
             try:
-                value = compval.type.bind_processor(dialect)(value)  # type: ignore
+                type_impl = compval.type.dialect_impl(dialect)
+                value = type_impl.bind_processor(dialect)(value)
             except (TypeError, AttributeError):
                 pass
         if self.is_ascending:
