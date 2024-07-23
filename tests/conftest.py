@@ -146,6 +146,23 @@ class GuardDoubleProcessing(TypeDecorator):
         return value.val
 
 
+class EnforceDialectSpecificTypes(TypeDecorator):
+    class DialectSpecificImpl(Exception):
+        pass
+
+    class InvalidTypeEngine(String):
+        def bind_processor(self, dialect):
+            raise EnforceDialectSpecificTypes.DialectSpecificImpl(
+                "Did not get the dialect specific impl."
+            )
+
+    impl = InvalidTypeEngine
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(String(255))
+
+
 class Colour(enum.Enum):
     red = 0
     green = 1
@@ -191,7 +208,7 @@ class Book(Base):
 class Author(Base):
     __tablename__ = "author"
     id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False)
+    name = Column(EnforceDialectSpecificTypes, nullable=False)
     books = relationship("Book", backref="author")
     info = Column(String(255), nullable=False)
 
