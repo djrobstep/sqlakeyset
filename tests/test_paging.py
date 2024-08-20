@@ -95,14 +95,14 @@ def check_paging_orm(q):
             assert gathered == unpaged
 
 
-def check_paging_core(selectable, s):
+def check_paging_core(selectable, s, unique=False):
     item_counts = range(1, 12)
 
     if isinstance(s, Session):
         result = s.execute(selectable)
     else:
         result = Session(bind=s).execute(selectable)
-    unpaged = result.fetchall()
+    unpaged = result.unique().fetchall() if unique else result.fetchall()
 
     for backwards in [False, True]:
         for per_page in item_counts:
