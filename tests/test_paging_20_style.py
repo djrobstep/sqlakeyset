@@ -2,7 +2,7 @@
 import pytest
 from packaging import version
 from sqlalchemy import desc, func, select
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload, selectinload
 from conftest import (
     ECHO,
     SQLA_VERSION,
@@ -186,3 +186,15 @@ def test_new_orm_query_using_connection(dburl):
     with S(dburl, echo=ECHO) as s:
         q = select(Book).order_by(Book.id, Book.name)
         check_paging_core(q, s.connection())
+
+
+def test_new_orm_selectinload(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = select(Author).options(selectinload(Author.books)).order_by(Author.name, Author.id)
+        check_paging_core(q, s)
+
+
+def test_new_orm_joinedload(dburl):
+    with S(dburl, echo=ECHO) as s:
+        q = select(Author).options(joinedload(Author.books)).order_by(Author.name, Author.id)
+        check_paging_core(q, s, unique=True)

@@ -295,6 +295,11 @@ def core_get_page(
         dialect=get_bind(q=selectable, s=s).dialect,
     )
     selected = s.execute(sel.select)
+    # NOTE: This feels quite brittle, but is the best way I could think of to detect
+    # results that need .unique() called on them.
+    state = getattr(selected, "_unique_filter_state", None)
+    if isinstance(state, tuple) and len(state) > 0 and state[0] is None:
+        selected = selected.unique()
     keys = list(selected.keys())
     N = len(keys) - len(sel.extra_columns)
     keys = keys[:N]
