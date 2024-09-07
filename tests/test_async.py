@@ -1,12 +1,18 @@
+import json
 import re
 
 import pytest
 import pytest_asyncio
-from conftest import SQLA_VERSION, Author, Book
+from conftest import SQLA_VERSION, Author, Base, Book, Ticket
 from packaging import version
-from sqlalchemy import desc, orm, select
+from sqlalchemy import Column, Integer, desc, orm, select
+from sqlalchemy.types import UserDefinedType
 
-from sqlakeyset.results import serialize_bookmark, unserialize_bookmark
+from sqlakeyset.results import (
+    custom_bookmark_type,
+    serialize_bookmark,
+    unserialize_bookmark,
+)
 
 if SQLA_VERSION < version.parse("1.4.0"):
     pytest.skip(
@@ -24,6 +30,35 @@ ASYNC_PROTOS = {
 }
 
 
+class StringInt(UserDefinedType):
+    cache_ok = True
+
+    def bind_processor(self, dialect):
+        def process(value):
+            return str(value)
+
+        return process
+
+    def result_processor(self, dialect, coltype):
+        def process(value):
+            return value
+
+        return process
+
+    def get_col_spec(self, **kw):
+        return "INT"
+
+
+class Wat(Base):
+    __tablename__ = "wat"
+
+    id = Column(Integer, primary_key=True)
+    num = Column(StringInt, nullable=False)
+
+
+custom_bookmark_type(dict, "D", json.loads, json.dumps)
+
+
 @pytest_asyncio.fixture
 async def async_session(dburl):
     for k, v in ASYNC_PROTOS.items():
@@ -35,6 +70,7 @@ async def async_session(dburl):
         sessionmaker = orm.sessionmaker(engine, class_=asa.AsyncSession)
 
     async with sessionmaker() as s:
+        s.add_all([Wat(num=i % 3) for i in range(20)])
         yield s
 
 
@@ -82,4 +118,16 @@ async def check_paging_async(selectable, s):
 async def test_async_orm_query1(async_session):
     spec = [desc(Book.b), Book.d, Book.id]
     q = select(Book, Author, Book.id).outerjoin(Author).order_by(*spec)
+    await check_paging_async(q, async_session)
+
+
+@pytest.mark.asyncio
+async def test_uuid(async_session):
+    q = select(Ticket).order_by(Ticket.id)
+    await check_paging_async(q, async_session)
+
+
+@pytest.mark.asyncio
+async def test_bind_processor(async_session):
+    q = select(Wat).order_by(Wat.num, Wat.id)
     await check_paging_async(q, async_session)
