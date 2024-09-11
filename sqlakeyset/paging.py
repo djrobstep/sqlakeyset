@@ -46,10 +46,17 @@ _TP = TypeVar("_TP", bound=Tuple[Any, ...])
 
 PER_PAGE_DEFAULT = 10
 
-# Dialects built-in to sqlalchemy that support native tuple comparison.
-# Other custom dialects may support this too, but we err on the side of
-# breaking less.
-SUPPORTS_NATIVE_TUPLE_COMPARISON = ("postgresql", "mysql", "sqlite")
+def can_use_native_tuples(dialect: Dialect):
+    # SQL drivers built-in to sqlalchemy that support native tuple comparison and seem
+    # to work fine with custom types in tuples. Other custom dialects may support this
+    # too, but we err on the side of breaking less.
+    if dialect.name in ("mysql", "sqlite"):
+        return True
+    if dialect.driver == "psycopg2":
+        # Other postgres drivers use render_bind_casts, which breaks our workaround for
+        # https://github.com/sqlalchemy/sqlalchemy/issues/8992.
+        return True
+    return False
 
 
 def compare_tuples(lesser: Sequence, greater: Sequence) -> ColumnElement[bool]:
@@ -91,9 +98,7 @@ def where_condition_for_page(
             "Page marker has different column count to query's order clause"
         )
 
-    native_tuple = (
-        len(place) > 1 and dialect.name.lower() in SUPPORTS_NATIVE_TUPLE_COMPARISON
-    )
+    native_tuple = len(place) > 1 and can_use_native_tuples(dialect)
 
     zipped = zip(ordering_columns, place)
     swapped = [

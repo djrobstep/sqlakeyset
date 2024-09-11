@@ -1,18 +1,15 @@
+from contextlib import asynccontextmanager
 import json
 import re
 
 import pytest
 import pytest_asyncio
+from sqlalchemy.types import UserDefinedType
 from conftest import SQLA_VERSION, Author, Base, Book, Ticket
 from packaging import version
-from sqlalchemy import Column, Integer, desc, orm, select
-from sqlalchemy.types import UserDefinedType
+from sqlalchemy import JSON, Column, Integer, String, desc, orm, select
 
-from sqlakeyset.results import (
-    custom_bookmark_type,
-    serialize_bookmark,
-    unserialize_bookmark,
-)
+from sqlakeyset.results import custom_bookmark_type, serialize_bookmark, unserialize_bookmark
 
 if SQLA_VERSION < version.parse("1.4.0"):
     pytest.skip(
@@ -30,37 +27,34 @@ ASYNC_PROTOS = {
 }
 
 
-class StringInt(UserDefinedType):
+class StringifiedJSON(UserDefinedType):
     cache_ok = True
 
     def bind_processor(self, dialect):
         def process(value):
-            return str(value)
-
+            return json.dumps(value)
         return process
 
     def result_processor(self, dialect, coltype):
         def process(value):
             return value
-
         return process
 
     def get_col_spec(self, **kw):
-        return "INT"
+        return "JSONB"
 
 
-class Wat(Base):
-    __tablename__ = "wat"
+class Jason(Base):
+    __tablename__ = "pg_only_jason"
 
     id = Column(Integer, primary_key=True)
-    num = Column(StringInt, nullable=False)
-
+    content = Column(StringifiedJSON, nullable=False)
 
 custom_bookmark_type(dict, "D", json.loads, json.dumps)
 
-
-@pytest_asyncio.fixture
-async def async_session(dburl):
+@asynccontextmanager
+async def _make_async_session(dburl):
+    pg = dburl.startswith("postgres")
     for k, v in ASYNC_PROTOS.items():
         dburl = re.sub("^" + k, v, dburl)
     engine = asa.create_async_engine(dburl, future=True)
@@ -70,7 +64,23 @@ async def async_session(dburl):
         sessionmaker = orm.sessionmaker(engine, class_=asa.AsyncSession)
 
     async with sessionmaker() as s:
-        s.add_all([Wat(num=i % 3) for i in range(20)])
+        if pg:
+            s.add_all([
+                Jason(content={"hello": "world"}),
+                Jason(content={}),
+                Jason(content={"video": "games"}),
+                Jason(content={"potato": "salad"}),
+            ])
+        yield s
+
+@pytest_asyncio.fixture
+async def async_session(dburl):
+    async with _make_async_session(dburl) as s:
+        yield s
+
+@pytest_asyncio.fixture
+async def asyncpg_session(pg_only_dburl):
+    async with _make_async_session(pg_only_dburl) as s:
         yield s
 
 
@@ -126,8 +136,7 @@ async def test_uuid(async_session):
     q = select(Ticket).order_by(Ticket.id)
     await check_paging_async(q, async_session)
 
-
 @pytest.mark.asyncio
-async def test_bind_processor(async_session):
-    q = select(Wat).order_by(Wat.num, Wat.id)
-    await check_paging_async(q, async_session)
+async def test_bind_processor(asyncpg_session):
+    q = select(Jason).order_by(Jason.content, Jason.id)
+    await check_paging_async(q, asyncpg_session)
