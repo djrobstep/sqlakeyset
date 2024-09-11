@@ -14,20 +14,21 @@ from typing import (
     Union,
     overload,
 )
-from typing_extensions import Literal  # to keep python 3.7 support
 
-from sqlalchemy import tuple_, and_, or_
+from sqlalchemy import and_, or_, tuple_
 from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.selectable import Select
+from typing_extensions import Literal  # to keep python 3.7 support
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
 from .results import Page, Paging, unserialize_bookmark
 from .serial import InvalidPage
 from .sqla import (
+    Row,
     core_coerce_row,
     core_result_type,
     get_bind,
@@ -37,19 +38,25 @@ from .sqla import (
     orm_query_keys,
     orm_result_type,
     orm_to_selectable,
-    Row,
 )
 from .types import Keyset, Marker, MarkerLike
-
 
 _TP = TypeVar("_TP", bound=Tuple[Any, ...])
 
 PER_PAGE_DEFAULT = 10
 
-# Dialects built-in to sqlalchemy that support native tuple comparison.
-# Other custom dialects may support this too, but we err on the side of
-# breaking less.
-SUPPORTS_NATIVE_TUPLE_COMPARISON = ("postgresql", "mysql", "sqlite")
+
+def can_use_native_tuples(dialect: Dialect):
+    # SQL drivers built-in to sqlalchemy that support native tuple comparison and seem
+    # to work fine with custom types in tuples. Other custom dialects may support this
+    # too, but we err on the side of breaking less.
+    if dialect.name in ("mysql", "sqlite"):
+        return True
+    if dialect.driver == "psycopg2":
+        # Other postgres drivers use render_bind_casts, which breaks our workaround for
+        # https://github.com/sqlalchemy/sqlalchemy/issues/8992.
+        return True
+    return False
 
 
 def compare_tuples(lesser: Sequence, greater: Sequence) -> ColumnElement[bool]:
@@ -91,9 +98,7 @@ def where_condition_for_page(
             "Page marker has different column count to query's order clause"
         )
 
-    native_tuple = (
-        len(place) > 1 and dialect.name.lower() in SUPPORTS_NATIVE_TUPLE_COMPARISON
-    )
+    native_tuple = len(place) > 1 and can_use_native_tuples(dialect)
 
     zipped = zip(ordering_columns, place)
     swapped = [
@@ -156,8 +161,7 @@ def prepare_paging(
     backwards: bool,
     orm: Literal[True],
     dialect: Dialect,
-) -> _PagingQuery:
-    ...
+) -> _PagingQuery: ...
 
 
 @overload
@@ -168,8 +172,7 @@ def prepare_paging(
     backwards: bool,
     orm: Literal[False],
     dialect: Dialect,
-) -> _PagingSelect:
-    ...
+) -> _PagingSelect: ...
 
 
 def prepare_paging(

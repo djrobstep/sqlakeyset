@@ -1,8 +1,8 @@
 import enum
+import uuid
 from datetime import timedelta
 from functools import partial
 from random import randrange
-import uuid
 
 import arrow
 import pytest
@@ -22,13 +22,12 @@ from sqlalchemy import select as _select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import column_property, relationship
 from sqlalchemy.types import TypeDecorator
+from sqlalchemy_utils import ArrowType
 from sqlbag import S as _S
 from sqlbag import temporary_database
 
-from sqlakeyset.sqla import SQLA_VERSION
 from sqlakeyset import custom_bookmark_type
-
-from sqlalchemy_utils import ArrowType
+from sqlakeyset.sqla import SQLA_VERSION
 
 SQLA2 = SQLA_VERSION >= version.parse("1.4")
 if not SQLA2:
@@ -332,7 +331,15 @@ def _dburl(request):
 
     with temporary_database(request.param, host="localhost") as dburl:
         with S(dburl) as s:
-            Base.metadata.create_all(s.connection())
+            if request.param == "postgresql":
+                tables = None
+            else:
+                tables = [
+                    t
+                    for k, t in Base.metadata.tables.items()
+                    if not k.startswith("pg_only_")
+                ]
+            Base.metadata.create_all(s.connection(), tables=tables)
             s.add_all(data)
             s.execute(insert(Widget).values(widgets))
         yield dburl
