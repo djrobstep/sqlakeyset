@@ -335,7 +335,9 @@ def _dburl(request):
                 tables = None
             else:
                 tables = [
-                    t for k, t in Base.metadata.tables.items() if not k.startswith("pg_only_")
+                    t
+                    for k, t in Base.metadata.tables.items()
+                    if not k.startswith("pg_only_")
                 ]
             Base.metadata.create_all(s.connection(), tables=tables)
             s.add_all(data)
