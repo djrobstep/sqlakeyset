@@ -6,6 +6,7 @@ from functools import partial
 from typing import (
     Any,
     List,
+    Literal,
     NamedTuple,
     Optional,
     Sequence,
@@ -22,7 +23,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.selectable import Select
-from typing_extensions import Literal  # to keep python 3.7 support
 
 from .columns import OC, MappedOrderColumn, find_order_key, parse_ob_clause
 from .results import Page, Paging, unserialize_bookmark

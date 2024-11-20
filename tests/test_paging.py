@@ -10,7 +10,7 @@ CLI and run e.g.
     circleci local execute build-3.11-2.0.0
 
 which will execute the tests for python 3.11 and sqlalchemy ~=2.0.0 using
-docker containers. (Available python versions are 3.7, 3.8, 3.9, 3.10, 3.11 and
+docker containers. (Available python versions are 3.9, 3.10, 3.11, 3.12, 3.13 and
 valid sqlalchemy versions are 1.3.0, 1.4.0, 2.0.0.)"""
 import warnings
 from packaging import version

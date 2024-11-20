@@ -75,12 +75,12 @@ jobs:
   publish:
     working_directory: ~/circleci
     docker:
-      - image: cimg/python:3.7
+      - image: cimg/python:3.9
     steps:
       - setup_remote_docker
       - checkout
       - restore_cache:
-          key: deps-py-3.7-{{ .Branch }}-{{ checksum "pyproject.toml" }}
+          key: deps-py-3.9-{{ .Branch }}-{{ checksum "pyproject.toml" }}
       - run:
           name: Install deps
           command: |
@@ -105,7 +105,7 @@ workflows:
       - build:
           matrix:
             parameters:
-              python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+              python: ["3.9", "3.10", "3.11", "3.12"]
               sqlalchemy: ["1.3.24", "1.4.49", "2.0.0", "2.0.31"]
       - publish:
           requires:
