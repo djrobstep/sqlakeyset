@@ -16,9 +16,6 @@ dependencies = [
     "typing-extensions<5,>=4.7; python_version < '3.13'",
 ]
 
-[tool.setuptools]
-packages = ["sqlakeyset"]
-
 [project.urls]
 homepage = "https://github.com/djrobstep/sqlakeyset"
 repository = "https://github.com/djrobstep/sqlakeyset"
@@ -65,5 +62,5 @@ line_length = 88
 filterwarnings = "ignore:.*cache_ok.*:::"
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
