@@ -1,115 +1,92 @@
 version: 2.1
 jobs:
-  build:
+  test:
     parameters:
       python:
         type: string
-        description: Python version to use (e.g. "3.7", "3.11")
+        description: Python major.minor version to use (e.g. "3.7", "3.11")
       sqlalchemy:
         type: string
-        description: |
-          SQLAlchemy version to use (e.g. "2.0.0", "1.4.0").
-          This value is used for the "compatible release" specifier (~=)
-          See https://peps.python.org/pep-0440/#compatible-release.
+        description: SQLAlchemy version to use (e.g. "2.0.36", "1.4").
     working_directory: ~/circleci
     resource_class: large
     docker:
-      - image: cimg/python:<< parameters.python >>
+      - image: ghcr.io/astral-sh/uv:0.5.7-python<<parameters.python>>-alpine
       - image: cimg/postgres:12.12
         environment:
-          POSTGRES_USER: circleci
-          POSTGRES_DB: circleci
+          POSTGRES_USER: root
+          POSTGRES_DB: root
           POSTGRES_HOST_AUTH_METHOD: trust
       - image: cimg/mariadb:10.11
         environment:
-          MYSQL_DATABASE: circleci
-          MYSQL_USER: circleci
-          MYSQL_PASSWORD: ''
-          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: root
+          MYSQL_USER: root
+          MYSQL_PASSWORD: ""
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
 
     environment:
-      SQLALCHEMY_SILENCE_UBER_WARNING: 1  # Silence sqlalchemy 2.0 warnings
+      SQLALCHEMY_SILENCE_UBER_WARNING: 1 # Silence sqlalchemy 2.0 warnings
+      UV_LOCKED: 1
+      UV_PYTHON_PREFERENCE: only-system
+
     steps:
       - checkout
       - restore_cache:
-          key: deps-py-<< parameters.python >>-{{ .Branch }}-{{ checksum "pyproject.toml" }}
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y postgresql-client
-      - run: sudo apt-get install -y default-mysql-client
+          key: uv-<<parameters.python>>
+      - run: 
+          name: Install non-python deps
+          command: |
+            apk update --no-cache
+            apk add --no-cache curl openssl postgresql16-client mariadb-client make git
+            curl -LSsf https://github.com/jwilder/dockerize/releases/download/v0.8.0/dockerize-alpine-linux-amd64-v0.8.0.tar.gz | tar xzf - -C /usr/local/bin
       - run:
           name: Wait for db
           command: dockerize -wait tcp://localhost:5432 -wait tcp://localhost:3306 -timeout 1m
       - run:
           name: create postgres user
-          command: psql postgresql://@localhost/circleci -c 'create role postgres'
+          command: psql postgresql://@localhost/root -c 'create role postgres'
       - run:
           name: create mysql user
-          command: mysql circleci -u root -h 127.0.0.1 -e "create user 'circleci'@'127.0.0.1'; grant all privileges on *.* to 'circleci'@'127.0.0.1' identified by '';"
-      - run:
-          name: install deps
-          command: |
-            python3 -m venv ~/.venv
-            . ~/.venv/bin/activate
-
-            poetry config virtualenvs.create false
-            poetry install --no-ansi
-            pip install pytest-xdist # we can speed up tests by running in parallel
-      - save_cache:
-          key: deps-py-<< parameters.python >>-{{ .Branch }}-{{ checksum "pyproject.toml" }}
-          paths:
-            - "~/.venv"
+          command: mysql root -u root -h 127.0.0.1 -e "create user 'root'@'127.0.0.1'; grant all privileges on *.* to 'root'@'127.0.0.1' identified by '';"
       - run:
           name: Check formatting
-          command: |
-            . ~/.venv/bin/activate
-            make lint
+          command: make lint
       - run:
-          name: Test with SQLAlchemy ~= << parameters.sqlalchemy >>
+          name: Test with SQLAlchemy == << parameters.sqlalchemy >>
           command: |
-            . ~/.venv/bin/activate
-            pip install 'sqlalchemy~=<< parameters.sqlalchemy >>'
-            PYTEST_ARGS="-n4" make test
+            UV_RUN_ARGS="--with pytest-xdist --with sqlalchemy==<<parameters.sqlalchemy>>" PYTEST_ARGS="-n4" make test
       - store_test_results:
           path: test-reports
+      - save_cache:
+          key: uv-<<parameters.python>>
+          paths:
+            - "~/.cache/uv"
 
   publish:
     working_directory: ~/circleci
     docker:
-      - image: cimg/python:3.7
+      - image: ghcr.io/astral-sh/uv:0.5.7-python3.12-alpine
     steps:
       - setup_remote_docker
       - checkout
-      - restore_cache:
-          key: deps-py-3.7-{{ .Branch }}-{{ checksum "pyproject.toml" }}
-      - run:
-          name: Install deps
-          command: |
-            python3 -m venv ~/.venv
-            . ~/.venv/bin/activate
-
-            poetry config virtualenvs.create false
-            poetry install --no-ansi
       - run:
           name: Bump version, build, install
           command: |
-            . ~/.venv/bin/activate
-            python deploy/vbump.py
-            poetry build
-            poetry config pypi-token.pypi "$PYPI_API_TOKEN"
-            poetry publish
-
+            python3 deploy/vbump.py
+            uv build
+            uv publish dist/* --token "$PYPI_API_TOKEN"
 
 workflows:
   build-then-publish:
     jobs:
-      - build:
+      - test:
           matrix:
             parameters:
-              python: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-              sqlalchemy: ["1.3.24", "1.4.49", "2.0.0", "2.0.31"]
+              python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+              sqlalchemy: ["1.3.24", "1.4.49", "2.0.36"]
       - publish:
           requires:
-            - build
+            - test
           filters:
             branches:
               only: master

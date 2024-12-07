@@ -1,40 +1,60 @@
-[tool.poetry]
+[project]
+authors = [
+    {name = "Robert Lechte", email = "robertlechte@gmail.com"},
+    {name = "Anthony Carapetis", email = "anthony.carapetis@gmail.com"},
+]
+license = {text = "Unlicense"}
+requires-python = ">=3.7"
 name = "sqlakeyset"
 version = "2.0"
-authors = [ "Robert Lechte <robertlechte@gmail.com>", "Anthony Carapetis <anthony.carapetis@gmail.com>" ]
-license = "Unlicense"
 readme = "README.rst"
 description = "offset-free paging for sqlalchemy"
+dependencies = [
+    "sqlalchemy>=1.3.11",
+    "python-dateutil>=2.0",
+    "packaging>=20.0",
+    "typing-extensions<5,>=4.7; python_version < '3.13'",
+]
 
-repository = "https://github.com/djrobstep/sqlakeyset"
+[tool.setuptools]
+packages = ["sqlakeyset"]
+
+[project.urls]
 homepage = "https://github.com/djrobstep/sqlakeyset"
+repository = "https://github.com/djrobstep/sqlakeyset"
 
-[tool.poetry.dependencies]
-python = ">=3.7,<4.0"
-sqlalchemy = ">=1.3.11"
-python-dateutil = "*"
-packaging = ">=20.0"
-typing_extensions = ">=4,<5"
+[dependency-groups]
+dev = [
+    "sqlbag",
+    "pytest-clarity>=1.0.0",
+    "black>=19.10b0",
+    "sqlalchemy-utils>=0.37.0",
+    "toml<0.11,>=0.10.0",
+    "sqlalchemy[asyncio]<3.0.0,>=2.0.7",
+    "aiosqlite<1.0.0,>=0.18.0",
+    "aiomysql<1.0.0,>=0.1.1",
+    "pytest>=7.4.4",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.2",
+    "psycopg2-binary>=2.9.9",
+    "psycopg2-binary>=2.9.10; python_version >= '3.13'",
+    "asyncpg>=0.27.0",
+    "asyncpg>=0.30.0; python_version >= '3.12'",
+    "pymysql>=1.1.1",
+    "flake8>=3.9.2",
+    "flake8>=4; python_version >= '3.12'",
+    "isort>=5.11.5",
+    "pytz>=2024.2",
+    "arrow>=1.2.3",
+    "python-dateutil>=2.9.0.post0",
+]
+doc = [
+    "sphinx>=5",
+    "sphinx-rtd-theme>=2",
+]
 
-[tool.poetry.dev-dependencies]
+[tool.uv.sources]
 sqlbag = { git = "https://github.com/acarapetis/sqlbag.git", rev = "0a97a185070228b43cb86181e5df8051f46ebc86" }
-pytest = "*"
-pytest-cov = "*"
-pytest-clarity = ">=1.0.0"
-pytest-asyncio = "*"
-psycopg2-binary = "*"
-pymysql = "*"
-flake8 = "*"
-isort = "*"
-pytz = "*"
-black = { version = ">=19.10b0", python=">=3.6" }
-sqlalchemy_utils = ">=0.37.0"
-arrow = "*"
-toml = ">=0.10.0,<0.11"
-sqlalchemy = {extras = ["asyncio"], version = "^2.0.7"}
-aiosqlite = "^0.18.0"
-asyncpg = ">=0.27.0"
-aiomysql = "^0.1.1"
 
 [tool.isort]
 multi_line_output = 3
@@ -45,5 +65,5 @@ line_length = 88
 filterwarnings = "ignore:.*cache_ok.*:::"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
