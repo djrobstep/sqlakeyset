@@ -21,7 +21,12 @@ sqlakeyset implements keyset-based paging for SQLAlchemy (both ORM and core). **
 
 This library is tested with PostgreSQL, MariaDB/MySQL and SQLite. It should work with many other SQLAlchemy-supported databases, too; but caveat emptor - you should verify the results are correct.
 
-**Notice:** In accordance with Python end-of-life dates, we've stopped supporting Python versions earlier than 3.7. If you really need it, the latest version to support Python 2 is 0.1.1559103842 and Python 3.4 is 1.0.1679209451, but you'll miss out on all the latest features and bugfixes from the latest version. You should be upgrading anyway!
+Python version compatibility
+----------------------------
+
+**Notice:** In accordance with Python end-of-life dates, we've stopped supporting Python versions earlier than 3.8.
+
+If you really need it, the latest version to support Python 2 is 0.1.1559103842, Python 3.4 is 1.0.1679209451, and Python 3.7 is 2.0.1733532871; but you'll miss out on all the latest features and bugfixes from newer versions. You should be upgrading anyway!
 
 Background
 ----------
