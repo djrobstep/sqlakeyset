@@ -1,6 +1,5 @@
-
 # test commands and arguments
-tcommand = PYTHONPATH=. py.test -x
+tcommand = PYTHONPATH=. uv run ${UV_RUN_ARGS} -m pytest -x
 tmessy = -svv
 targs = --cov-report term-missing --cov sqlakeyset --junitxml=test-reports/pytest-`date +%s`.xml ${PYTEST_ARGS}
 
@@ -26,13 +25,13 @@ clean:
 	rm -rf dist
 
 lint:
-	flake8 sqlakeyset
-	flake8 tests
+	uv run flake8 sqlakeyset
+	uv run flake8 tests
 
 tidy: clean fmt lint
 
 
-all: pipupgrade clean lint tox
+all: clean lint tox
 
 publish:
 	python setup.py sdist bdist_wheel --universal
