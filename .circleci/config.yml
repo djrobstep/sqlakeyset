@@ -72,7 +72,7 @@ jobs:
       - run:
           name: Bump version, build, install
           command: |
-            python3 deploy/vbump.py
+            uv run --no-project --with "toml~=0.10.0" deploy/vbump.py
             uv build
             uv publish dist/* --token "$PYPI_API_TOKEN"
 
