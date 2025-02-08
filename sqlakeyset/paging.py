@@ -425,7 +425,7 @@ def select_page(
     place, backwards = process_args(after, before, page)
 
     session = get_session(s)
-    return core_get_page(session, selectable, per_page, place, backwards, unique)
+    return core_get_page(session, selectable, per_page, unique, place, backwards)
 
 
 def get_page(

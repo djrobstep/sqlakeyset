@@ -86,4 +86,4 @@ async def select_page(
         to access surrounding pages.
     """
     place, backwards = process_args(after, before, page)
-    return await core_get_page(s, selectable, per_page, place, backwards, unique)
+    return await core_get_page(s, selectable, per_page, unique, place, backwards)
