@@ -270,6 +270,7 @@ def core_get_page(
     s: Session,
     selectable: Select[_TP],
     per_page: int,
+    unique: bool,
     place: Optional[Keyset],
     backwards: bool,
 ) -> Page[Row[_TP]]:
@@ -279,6 +280,7 @@ def core_get_page(
         :class:`sqlalchemy.orm.session.Session` to use to execute the query.
     :param selectable: The source selectable.
     :param per_page: Number of rows per page.
+    :param unique: whether to return only unique rows.
     :param place: Keyset representing the place after which to start the page.
     :param backwards: If ``True``, reverse pagination direction.
     :returns: :class:`Page`
@@ -306,6 +308,8 @@ def core_get_page(
     keys = list(selected.keys())
     N = len(keys) - len(sel.extra_columns)
     keys = keys[:N]
+    if unique:
+        selected = selected.unique()
     page = core_page_from_rows(
         sel,
         selected.fetchall(),
@@ -392,6 +396,7 @@ def select_page(
     s: Union[Session, Connection],
     selectable: Select[_TP],
     per_page: int = PER_PAGE_DEFAULT,
+    unique: bool = False,
     after: OptionalKeyset = None,
     before: OptionalKeyset = None,
     page: Optional[Union[MarkerLike, str]] = None,
@@ -406,6 +411,7 @@ def select_page(
     :param selectable: The source selectable.
     :param per_page: The (maximum) number of rows on the page.
     :type per_page: int, optional.
+    :param unique: whether to return only unique rows.
     :param page: a ``(keyset, backwards)`` pair or string bookmark describing
         the page to get.
     :param after: if provided, the page will consist of the rows immediately
@@ -419,7 +425,7 @@ def select_page(
     place, backwards = process_args(after, before, page)
 
     session = get_session(s)
-    return core_get_page(session, selectable, per_page, place, backwards)
+    return core_get_page(session, selectable, per_page, place, backwards, unique)
 
 
 def get_page(

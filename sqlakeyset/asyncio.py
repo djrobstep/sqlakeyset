@@ -23,6 +23,7 @@ async def core_get_page(
     s: Union[AsyncSession, AsyncConnection],
     selectable: Select[_TP],
     per_page: int,
+    unique: bool,
     place: Optional[Keyset],
     backwards: bool,
 ) -> Page[Row[_TP]]:
@@ -39,6 +40,8 @@ async def core_get_page(
     keys = list(selected.keys())
     N = len(keys) - len(sel.extra_columns)
     keys = keys[:N]
+    if unique:
+        selected = selected.unique()
     page = core_page_from_rows(
         sel,
         selected.fetchall(),
@@ -55,6 +58,7 @@ async def select_page(
     s: Union[AsyncSession, AsyncConnection],
     selectable: Select[_TP],
     per_page: int = PER_PAGE_DEFAULT,
+    unique: bool = False,
     after: OptionalKeyset = None,
     before: OptionalKeyset = None,
     page: Optional[Union[MarkerLike, str]] = None,
@@ -69,6 +73,7 @@ async def select_page(
         :class:`sqlalchemy.orm.session.Session` to use to execute the query.
     :param selectable: The source selectable.
     :param per_page: The (maximum) number of rows on the page.
+    :param unique: whether to return only unique rows.
     :type per_page: int, optional.
     :param page: a ``(keyset, backwards)`` pair or string bookmark describing
         the page to get.
@@ -81,4 +86,4 @@ async def select_page(
         to access surrounding pages.
     """
     place, backwards = process_args(after, before, page)
-    return await core_get_page(s, selectable, per_page, place, backwards)
+    return await core_get_page(s, selectable, per_page, place, backwards, unique)
