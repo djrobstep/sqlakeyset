@@ -64,3 +64,8 @@ filterwarnings = "ignore:.*cache_ok.*:::"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.8"
