@@ -300,16 +300,21 @@ def core_get_page(
         dialect=get_bind(q=selectable, s=s).dialect,
     )
     selected = s.execute(sel.select)
-    # NOTE: This feels quite brittle, but is the best way I could think of to detect
-    # results that need .unique() called on them.
-    state = getattr(selected, "_unique_filter_state", None)
-    if isinstance(state, tuple) and len(state) > 0 and state[0] is None:
-        selected = selected.unique()
+
     keys = list(selected.keys())
     N = len(keys) - len(sel.extra_columns)
     keys = keys[:N]
-    if unique:
+
+    # NOTE: This feels quite brittle, but is the best way I could think of to detect
+    # joinedload results that need .unique() called on them.
+    # This _unique_filter_state attribute is set to (None, ...) in
+    # sqlalchemy.orm.loading.instances.
+    ufs = getattr(selected, "_unique_filter_state", None)
+    is_joined_eager_load = isinstance(ufs, tuple) and len(ufs) > 0 and ufs[0] is None
+
+    if unique or is_joined_eager_load:
         selected = selected.unique()
+
     page = core_page_from_rows(
         sel,
         selected.fetchall(),
