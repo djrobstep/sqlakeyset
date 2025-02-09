@@ -272,6 +272,7 @@ def core_get_page(
     per_page: int,
     place: Optional[Keyset],
     backwards: bool,
+    unique: bool,
 ) -> Page[Row[_TP]]:
     """Get a page from an SQLAlchemy Core selectable.
 
@@ -281,6 +282,8 @@ def core_get_page(
     :param per_page: Number of rows per page.
     :param place: Keyset representing the place after which to start the page.
     :param backwards: If ``True``, reverse pagination direction.
+    :param unique: If ``True``, apply unique filtering to the rows returned in the page.
+        Under the hood this calls :meth:`sqlalchemy.engine.Result.unique`.
     :returns: :class:`Page`
     """
     # We need the result schema for the *original* query in order to properly
@@ -298,14 +301,21 @@ def core_get_page(
         dialect=get_bind(q=selectable, s=s).dialect,
     )
     selected = s.execute(sel.select)
-    # NOTE: This feels quite brittle, but is the best way I could think of to detect
-    # results that need .unique() called on them.
-    state = getattr(selected, "_unique_filter_state", None)
-    if isinstance(state, tuple) and len(state) > 0 and state[0] is None:
-        selected = selected.unique()
+
     keys = list(selected.keys())
     N = len(keys) - len(sel.extra_columns)
     keys = keys[:N]
+
+    # NOTE: This feels quite brittle, but is the best way I could think of to detect
+    # joinedload results that need .unique() called on them.
+    # This _unique_filter_state attribute is set to (None, ...) in
+    # sqlalchemy.orm.loading.instances.
+    ufs = getattr(selected, "_unique_filter_state", None)
+    is_joined_eager_load = isinstance(ufs, tuple) and len(ufs) > 0 and ufs[0] is None
+
+    if unique or is_joined_eager_load:
+        selected = selected.unique()
+
     page = core_page_from_rows(
         sel,
         selected.fetchall(),
@@ -392,6 +402,7 @@ def select_page(
     s: Union[Session, Connection],
     selectable: Select[_TP],
     per_page: int = PER_PAGE_DEFAULT,
+    unique: bool = False,
     after: OptionalKeyset = None,
     before: OptionalKeyset = None,
     page: Optional[Union[MarkerLike, str]] = None,
@@ -406,6 +417,7 @@ def select_page(
     :param selectable: The source selectable.
     :param per_page: The (maximum) number of rows on the page.
     :type per_page: int, optional.
+    :param unique: whether to return only unique rows.
     :param page: a ``(keyset, backwards)`` pair or string bookmark describing
         the page to get.
     :param after: if provided, the page will consist of the rows immediately
@@ -419,7 +431,7 @@ def select_page(
     place, backwards = process_args(after, before, page)
 
     session = get_session(s)
-    return core_get_page(session, selectable, per_page, place, backwards)
+    return core_get_page(session, selectable, per_page, place, backwards, unique=unique)
 
 
 def get_page(
