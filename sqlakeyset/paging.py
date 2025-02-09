@@ -270,9 +270,9 @@ def core_get_page(
     s: Session,
     selectable: Select[_TP],
     per_page: int,
-    unique: bool,
     place: Optional[Keyset],
     backwards: bool,
+    unique: bool,
 ) -> Page[Row[_TP]]:
     """Get a page from an SQLAlchemy Core selectable.
 
@@ -280,9 +280,10 @@ def core_get_page(
         :class:`sqlalchemy.orm.session.Session` to use to execute the query.
     :param selectable: The source selectable.
     :param per_page: Number of rows per page.
-    :param unique: whether to return only unique rows.
     :param place: Keyset representing the place after which to start the page.
     :param backwards: If ``True``, reverse pagination direction.
+    :param unique: If ``True``, apply unique filtering to the rows returned in the page.
+        Under the hood this calls :meth:`sqlalchemy.engine.Result.unique`.
     :returns: :class:`Page`
     """
     # We need the result schema for the *original* query in order to properly
@@ -430,7 +431,7 @@ def select_page(
     place, backwards = process_args(after, before, page)
 
     session = get_session(s)
-    return core_get_page(session, selectable, per_page, unique, place, backwards)
+    return core_get_page(session, selectable, per_page, place, backwards, unique=unique)
 
 
 def get_page(

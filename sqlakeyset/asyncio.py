@@ -23,9 +23,9 @@ async def core_get_page(
     s: Union[AsyncSession, AsyncConnection],
     selectable: Select[_TP],
     per_page: int,
-    unique: bool,
     place: Optional[Keyset],
     backwards: bool,
+    unique: bool,
 ) -> Page[Row[_TP]]:
     result_type = core_result_type(selectable, s)
     sel = prepare_paging(
@@ -86,4 +86,4 @@ async def select_page(
         to access surrounding pages.
     """
     place, backwards = process_args(after, before, page)
-    return await core_get_page(s, selectable, per_page, unique, place, backwards)
+    return await core_get_page(s, selectable, per_page, place, backwards, unique=unique)
