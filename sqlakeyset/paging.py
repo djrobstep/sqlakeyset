@@ -52,7 +52,7 @@ def can_use_native_tuples(dialect: Dialect):
     # too, but we err on the side of breaking less.
     if dialect.name in ("mysql", "sqlite"):
         return True
-    if dialect.driver == "psycopg2":
+    if dialect.driver == "psycopg" or dialect.driver == "psycopg2":
         # Other postgres drivers use render_bind_casts, which breaks our workaround for
         # https://github.com/sqlalchemy/sqlalchemy/issues/8992.
         return True
