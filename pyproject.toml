@@ -24,7 +24,6 @@ repository = "https://github.com/djrobstep/sqlakeyset"
 dev = [
     "sqlbag",
     "pytest-clarity>=1.0.0",
-    "black>=19.10b0",
     "sqlalchemy-utils>=0.37.0",
     "toml<0.11,>=0.10.0",
     "sqlalchemy[asyncio]<3.0.0,>=2.0.7",
@@ -38,8 +37,6 @@ dev = [
     "asyncpg>=0.27.0",
     "asyncpg>=0.30.0; python_version >= '3.12'",
     "pymysql>=1.1.1",
-    "flake8>=3.9.2",
-    "flake8>=4; python_version >= '3.12'",
     "pytz>=2024.2",
     "arrow>=1.2.3",
     "python-dateutil>=2.9.0.post0",
@@ -50,6 +47,9 @@ doc = [
     "sphinx>=5",
     "sphinx-rtd-theme>=2",
 ]
+
+[tool.uv]
+exclude-newer = "7 days"
 
 [tool.uv.sources]
 sqlbag = { git = "https://github.com/acarapetis/sqlbag.git", rev = "0a97a185070228b43cb86181e5df8051f46ebc86" }

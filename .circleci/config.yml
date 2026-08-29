@@ -11,7 +11,7 @@ jobs:
     working_directory: ~/circleci
     resource_class: large
     docker:
-      - image: ghcr.io/astral-sh/uv:0.9.8-python<<parameters.python>>-alpine
+      - image: ghcr.io/astral-sh/uv:0.12.7-python<<parameters.python>>-alpine
       - image: cimg/postgres:18.0
         environment:
           POSTGRES_USER: root
