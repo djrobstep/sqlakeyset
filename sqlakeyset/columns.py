@@ -71,6 +71,7 @@ class OC:
             x = asc(x)
         self.uo = x
         self.element = _remove_order_direction(x)
+        self._str = None
 
         if enable_warnings:
             _warn_if_nullable(self.comparable_value)
@@ -136,8 +137,10 @@ class OC:
         else:
             return value, compval
 
-    def __str__(self):
-        return str(self.uo)
+    def __str__(self) -> str:
+        if self._str is None:
+            self._str = str(self.uo)
+        return self._str
 
     def __repr__(self):
         return "<OC: {}>".format(str(self))
